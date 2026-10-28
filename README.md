@@ -26,7 +26,14 @@ On Windows, ProcDeck uses the built-in Windows PowerShell 5.1 and `netstat`, so 
 - **Started from**: walks the parent chain to the nearest editor, terminal or agent (Claude Code, Codex, Cursor, VS Code, tmux, a terminal app). On Linux and Windows it also checks environment variables such as `CLAUDECODE=1`, so it can still label an orphan whose parent has exited.
 - **Orphaned**: dev processes whose parent is gone (re-parented to PID 1 or `systemd --user`, or on Windows, a parent PID that no longer exists or now belongs to a newer process). These are the usual leftovers.
 
-Click a row for the detail panel: full command, folder, ports (with links), the ancestry chain, children, where stdout/stderr go (and the last lines when they go to a file), environment variables with secrets masked, and open files.
+- **Group**: put rows under their working folder or under what started them. Each group shows its total CPU and memory and has a **Stop all** button.
+- Totals for the matching processes, and the number of orphans in the browser tab title.
+- Rows keep their place while you point at, focus or select them, so the CPU sort doesn't move a row away just before you click it. "Order paused" appears when the held order differs from the sort.
+- Port numbers in the table are links to `http://localhost:<port>`.
+- A theme picker (Auto, Light, Dark). ProcDeck remembers it, with your filter, sort, tree and group choices.
+- A banner when the server stops or restarts. The page needs a reload after a restart, because each server start makes a new access token.
+
+Click a row for the detail panel: full command, folder, ports (with links), CPU and memory sparklines for the last few minutes, the ancestry chain, children, where stdout/stderr go (and the last lines when they go to a file), environment variables with secrets masked, and open files. Buttons copy the command, the PID or the folder.
 
 ## Stopping things
 
@@ -37,7 +44,14 @@ Click a row for the detail panel: full command, folder, ports (with links), the 
 - PID 1 (PIDs 0 and 4 on Windows) and ProcDeck itself are never signalled.
 - On Windows, **Stop** and **Force kill** do the same thing: they end the process immediately. Windows has no SIGTERM, and console programs such as Node can't receive a clean-shutdown request from another process. The confirmation dialog says this.
 
-Keyboard: `/` search, `r` refresh, `Delete` stop the selection, `Esc` close. Typing `:3000` in search finds whatever holds that port.
+Keyboard:
+
+- `/` search. `Esc` clears the search, then closes the panel, then clears the selection.
+- `↑`/`↓` or `k`/`j` move between rows. `Home`/`End` go to the first or last row.
+- `Enter` or `o` opens the detail panel. `Space` selects the row. Shift-click a checkbox to select a range.
+- `Delete` stops the selection, or the row you are on. `r` refreshes. `?` lists every shortcut.
+
+Typing `:3000` in search finds whatever holds that port.
 
 ## Security
 

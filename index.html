@@ -17,8 +17,9 @@
   --mono: ui-monospace, SFMono-Regular, Menlo, "DejaVu Sans Mono", Consolas, monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
 }
+/* The dark tokens appear twice: once for the system setting, once for the theme picker. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0e1014; --surface: #15181e; --surface-2: #1c2028; --border: #282d37;
     --text: #e4e7ec; --muted: #a0a9b6; --faint: #6a7382;
     --accent: #6b9cff; --accent-soft: #1b2944;
@@ -28,33 +29,62 @@
     --ai: #b598ff; --ai-soft: #261c3b;
   }
 }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e1014; --surface: #15181e; --surface-2: #1c2028; --border: #282d37;
+  --text: #e4e7ec; --muted: #a0a9b6; --faint: #6a7382;
+  --accent: #6b9cff; --accent-soft: #1b2944;
+  --warn: #f0a43a; --warn-soft: #31240f;
+  --danger: #ff6b6b; --danger-soft: #381717;
+  --ok: #5cc985; --ok-soft: #12291b;
+  --ai: #b598ff; --ai-soft: #261c3b;
+}
+:root[data-theme="light"] { color-scheme: light; }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
 body {
   background: var(--bg); color: var(--text); font: 14px/1.45 var(--sans);
-  display: grid; grid-template-rows: auto auto auto 1fr; overflow: hidden;
+  display: grid; grid-template-rows: auto auto auto auto 1fr; overflow: hidden;
 }
 button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+kbd {
+  font-family: var(--mono); font-size: 12px; padding: 1px 6px; border-radius: 4px;
+  border: 1px solid var(--border); border-bottom-width: 2px; background: var(--surface-2);
+}
 code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
 .dim { color: var(--muted); }
 .faint { color: var(--faint); }
 
 /* top bar */
 .top {
-  display: flex; align-items: center; gap: 16px; padding: 10px 16px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 16px;
   background: var(--surface); border-bottom: 1px solid var(--border);
 }
 .brand { display: flex; align-items: baseline; gap: 10px; white-space: nowrap; }
 .brand b { font-size: 16px; letter-spacing: -0.01em; }
 .brand .dim { font-size: 12px; }
-.search { flex: 1; max-width: 520px; }
+.search { flex: 1; min-width: 220px; max-width: 520px; position: relative; }
 .search input {
-  width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid var(--border);
+  width: 100%; padding: 7px 30px 7px 10px; border-radius: 7px; border: 1px solid var(--border);
   background: var(--bg); color: var(--text); font: inherit;
 }
 .search input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-.controls { display: flex; align-items: center; gap: 14px; margin-left: auto; white-space: nowrap; font-size: 13px; }
+/* Chrome's own clear button only exists for some browsers, so ProcDeck draws one for all. */
+.search input::-webkit-search-cancel-button { display: none; }
+.search-clear {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  background: none; border: 0; cursor: pointer; color: var(--faint);
+  width: 24px; height: 24px; border-radius: 5px; font-size: 16px; line-height: 1;
+}
+.search-clear:hover { color: var(--text); background: var(--surface-2); }
+.search-clear[hidden] { display: none; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-left: auto; white-space: nowrap; font-size: 13px; }
 .controls label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+.controls select {
+  font: inherit; font-size: 12.5px; padding: 2px 4px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+}
 #status { font-size: 12px; color: var(--faint); min-width: 110px; text-align: right; }
 #status.bad { color: var(--danger); }
 
@@ -71,6 +101,8 @@ code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
 .chip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 .chip.active .count { color: var(--accent); }
 .filters .spacer { flex: 1; }
+.summary { font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hold-hint { color: var(--accent); margin-left: 8px; }
 
 /* buttons */
 .btn {
@@ -122,12 +154,28 @@ thead th {
   font-weight: 600; font-size: 12px; color: var(--muted); padding: 7px 10px;
   border-bottom: 1px solid var(--border); user-select: none; white-space: nowrap;
 }
-thead th[data-sort] { cursor: pointer; }
+.th-btn {
+  background: none; border: 0; padding: 0; cursor: pointer; font: inherit; color: inherit;
+  font-weight: 600; text-align: inherit;
+}
 thead th[data-sort]:hover { color: var(--text); }
 thead th .arrow { color: var(--accent); }
 tbody td { padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
-tbody tr { cursor: pointer; }
+/* Keeps a row that keyboard navigation scrolls to clear of the sticky header. */
+tbody tr { cursor: pointer; scroll-margin-top: 34px; }
+tbody tr:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 tbody tr:hover { background: var(--surface-2); }
+tbody tr.group, tbody tr.group:hover { cursor: default; background: var(--surface-2); }
+tr.group td { padding: 5px 10px; }
+.group-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.group-toggle {
+  background: none; border: 0; padding: 0; cursor: pointer; text-align: left;
+  display: flex; align-items: baseline; gap: 8px; min-width: 0; font-size: 13px;
+}
+.group-toggle .caret { color: var(--faint); width: 10px; }
+.group-toggle .g-label { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.group-toggle .faint { white-space: nowrap; font-size: 12px; }
+.group-row .btn { margin-left: auto; }
 tbody tr.active { background: var(--accent-soft); }
 tbody tr.selected td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -152,13 +200,18 @@ col.c-mem { width: 80px; } col.c-age { width: 76px; } col.c-act { width: 42px; }
 .badge.hot { background: var(--danger-soft); color: var(--danger); }
 .port {
   display: inline-block; font-family: var(--mono); font-size: 11.5px; padding: 1px 5px; margin: 0 3px 3px 0;
-  border-radius: 4px; background: var(--ok-soft); color: var(--ok);
+  border-radius: 4px; background: var(--ok-soft); color: var(--ok); text-decoration: none;
 }
+a.port:hover { text-decoration: underline; }
 .origin { font-size: 12px; }
 .origin.k-ai { color: var(--ai); font-weight: 600; }
 .origin.k-editor { color: var(--accent); }
 .empty { padding: 48px 20px; text-align: center; color: var(--muted); }
-.notice { padding: 8px 16px; background: var(--warn-soft); color: var(--warn); font-size: 13px; }
+.empty p { margin: 0 0 4px; }
+.empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
+.notice { padding: 8px 16px; background: var(--warn-soft); color: var(--warn); font-size: 13px; border-bottom: 1px solid var(--border); }
+.notice.danger { background: var(--danger-soft); color: var(--danger); }
+.notice .btn { margin-left: 8px; }
 
 /* panel */
 .panel-head {
@@ -180,6 +233,11 @@ col.c-mem { width: 80px; } col.c-age { width: 76px; } col.c-act { width: 42px; }
 .kv { display: grid; grid-template-columns: 110px 1fr; gap: 4px 10px; margin: 0; font-size: 13px; }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; word-break: break-all; }
+.sparks { display: grid; gap: 4px; margin-top: 10px; }
+.spark { display: grid; grid-template-columns: 110px 1fr auto; align-items: center; gap: 10px; font-size: 12px; }
+.spark svg { width: 100%; height: 26px; display: block; }
+.spark svg.cpu { color: var(--accent); }
+.spark svg.mem { color: var(--ok); }
 pre.cmd {
   margin: 0; padding: 8px 10px; background: var(--surface-2); border-radius: 6px;
   white-space: pre-wrap; word-break: break-all; max-height: 160px; overflow: auto;
@@ -243,6 +301,9 @@ pre.log {
 .modal .warnings .callout { margin-top: 6px; }
 .ack { display: flex; gap: 8px; align-items: center; margin-top: 14px; font-size: 13px; cursor: pointer; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.keys { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 16px 0 0; font-size: 13px; }
+.keys dt { white-space: nowrap; }
+.keys dd { margin: 0; color: var(--muted); }
 
 /* toasts */
 .toasts { position: fixed; right: 16px; bottom: 16px; z-index: 60; display: flex; flex-direction: column; gap: 8px; max-width: 420px; }
@@ -260,11 +321,19 @@ pre.log {
 <body>
 <header class="top">
   <div class="brand"><b>ProcDeck</b><span class="dim" id="hostinfo"></span></div>
-  <div class="search"><input id="q" type="search" placeholder="Filter by name, path, PID or :port   ( / )" autocomplete="off" spellcheck="false"></div>
+  <div class="search">
+    <input id="q" type="search" placeholder="Filter by name, path, PID or :port   ( / )" autocomplete="off" spellcheck="false" aria-label="Filter processes">
+    <button class="search-clear" id="q-clear" type="button" aria-label="Clear search" title="Clear search (Esc)" hidden>×</button>
+  </div>
   <div class="controls">
     <label title="Nest child processes under their parents"><input type="checkbox" id="opt-tree"> Tree</label>
+    <label title="Group rows by working folder or by what started them">Group
+      <select id="opt-group"><option value="none">None</option><option value="folder">Folder</option><option value="origin">Started from</option></select></label>
     <label title="Refresh every 3 seconds"><input type="checkbox" id="opt-auto"> Auto-refresh</label>
+    <label title="Colour theme">Theme
+      <select id="opt-theme"><option value="auto">Auto</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
     <button class="btn small" id="refresh" title="Refresh now (r)">Refresh</button>
+    <button class="btn small" id="help" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
     <span id="status">Loading…</span>
   </div>
 </header>
@@ -276,9 +345,9 @@ pre.log {
   <button class="btn small danger-outline" id="bulk-kill">Force kill</button>
   <button class="btn small" id="bulk-clear" style="margin-left:auto">Clear selection</button>
 </div>
+<div id="notice"></div>
 <main class="layout">
   <section class="list">
-    <div id="notice"></div>
     <table>
       <colgroup>
         <col class="c-ck"><col><col class="c-pid"><col class="c-ports"><col class="c-proj">
@@ -287,30 +356,31 @@ pre.log {
       <thead>
         <tr>
           <th><input type="checkbox" id="check-all" title="Select all visible"></th>
-          <th data-sort="name">Process</th>
-          <th data-sort="pid" class="num">PID</th>
-          <th data-sort="ports">Ports</th>
-          <th data-sort="project">Folder</th>
-          <th data-sort="origin">Started from</th>
-          <th data-sort="cpu" class="num">CPU</th>
-          <th data-sort="mem" class="num">Memory</th>
-          <th data-sort="age" class="num">Running</th>
+          <th data-sort="name"><button class="th-btn">Process</button></th>
+          <th data-sort="pid" class="num"><button class="th-btn">PID</button></th>
+          <th data-sort="ports"><button class="th-btn">Ports</button></th>
+          <th data-sort="project"><button class="th-btn">Folder</button></th>
+          <th data-sort="origin"><button class="th-btn">Started from</button></th>
+          <th data-sort="cpu" class="num"><button class="th-btn">CPU</button></th>
+          <th data-sort="mem" class="num"><button class="th-btn">Memory</button></th>
+          <th data-sort="age" class="num"><button class="th-btn">Running</button></th>
           <th></th>
         </tr>
       </thead>
       <tbody id="rows"></tbody>
     </table>
-    <div class="empty" id="empty" hidden></div>
+    <div class="empty" id="empty"><p>Reading the process list…</p></div>
   </section>
   <aside class="panel" id="panel" hidden></aside>
 </main>
-<div class="backdrop" id="modal" hidden><div class="modal" id="modal-box" role="dialog" aria-modal="true"></div></div>
-<div class="toasts" id="toasts"></div>
+<div class="backdrop" id="modal" hidden><div class="modal" id="modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-title"></div></div>
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
 <script>
 'use strict';
 const TOKEN = '__PROCDECK_TOKEN__';
 const REFRESH_MS = 3000;
+const HISTORY = 60; // sparkline samples, about 3 minutes at the refresh rate
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -318,7 +388,11 @@ const plural = (n, word, many = word + 's') => `${n} ${n === 1 ? word : many}`;
 
 const prefs = (() => { try { return JSON.parse(localStorage.getItem('procdeck') || '{}'); } catch { return {}; } })();
 const savePrefs = () => {
-  try { localStorage.setItem('procdeck', JSON.stringify({ filter: state.filter, tree: state.tree, auto: state.auto, sort: state.sort })); } catch {}
+  try {
+    localStorage.setItem('procdeck', JSON.stringify({
+      filter: state.filter, tree: state.tree, auto: state.auto, sort: state.sort, group: state.group, theme: state.theme,
+    }));
+  } catch {}
 };
 
 const state = {
@@ -328,7 +402,24 @@ const state = {
   sort: prefs.sort || { key: 'cpu', dir: -1 },
   tree: prefs.tree ?? true,
   auto: prefs.auto ?? true,
+  group: prefs.group || 'none',
+  theme: prefs.theme || 'auto',
   selected: new Set(),
+  lastChecked: null,
+  cursor: null, // PID of the row that keyboard navigation is on
+  rows: [], // what the table shows right now, group headers included
+  order: null, // PIDs in the order of the last render
+  orderHeld: false,
+  hover: false,
+  rendering: false,
+  collapsed: new Set(),
+  groupPids: new Map(),
+  history: new Map(), // pid -> { args, samples: [[cpu, rssKb], ...] }
+  lastSampleAt: 0,
+  lastOk: 0,
+  error: null, // 'down', 'token' or 'other'
+  errorText: '',
+  busy: false,
   active: null,
   detail: null,
   detailGone: false,
@@ -336,13 +427,23 @@ const state = {
   loading: false,
 };
 
+function applyTheme() {
+  if (state.theme === 'auto') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = state.theme;
+}
+applyTheme();
+
 async function api(path, opts = {}) {
   const res = await fetch(path, {
     ...opts,
     headers: { 'x-procdeck-token': TOKEN, 'content-type': 'application/json', ...(opts.headers || {}) },
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error || res.statusText);
+  if (!res.ok) {
+    const err = new Error(body.error || res.statusText);
+    err.status = res.status;
+    throw err;
+  }
   return body;
 }
 const post = (path, body) => api(path, { method: 'POST', body: JSON.stringify(body) });
@@ -434,20 +535,63 @@ function treeOrder(list) {
   return out;
 }
 
-function visibleRows() {
+// Rows keep their place while the user points at, focuses or selects them.
+// Without this, the CPU sort moves rows under the cursor on every refresh.
+const holding = () => state.hover || state.selected.size > 0 || !!document.activeElement?.closest?.('#rows');
+
+function orderList(list, resort) {
+  const natural = sortList([...list]);
+  if (resort || !state.order || !holding()) {
+    state.orderHeld = false;
+    return natural;
+  }
+  const rank = new Map(state.order.map((pid, i) => [pid, i]));
+  const kept = list.filter((p) => rank.has(p.pid)).sort((a, b) => rank.get(a.pid) - rank.get(b.pid));
+  const held = [...kept, ...natural.filter((p) => !rank.has(p.pid))];
+  state.orderHeld = held.some((p, i) => p.pid !== natural[i].pid);
+  return held;
+}
+
+const GROUPS = {
+  folder: (p) => (p.cwd ? { key: p.cwd, label: tilde(p.cwd) } : { key: '', label: 'Unknown folder' }),
+  origin: (p) => (p.origin ? { key: p.origin.label, label: p.origin.label } : { key: '', label: 'No known origin' }),
+};
+
+// Returns process rows ({ p, depth }) and, when grouping is on, group headers ({ group }).
+function visibleRows({ resort = false } = {}) {
   if (!state.data) return [];
   const f = FILTERS.find((x) => x.id === state.filter) || FILTERS[0];
-  const list = sortList(state.data.processes.filter((p) => f.test(p) && matches(p, state.q)));
-  return state.tree ? treeOrder(list) : list.map((p) => ({ p, depth: 0 }));
+  const list = orderList(state.data.processes.filter((p) => f.test(p) && matches(p, state.q)), resort);
+  state.order = list.map((p) => p.pid);
+  state.matched = list;
+  const nest = (ps) => (state.tree ? treeOrder(ps) : ps.map((p) => ({ p, depth: 0 })));
+  const by = GROUPS[state.group];
+  state.groupPids = new Map();
+  if (!by) return nest(list);
+  const groups = new Map();
+  for (const p of list) {
+    const g = by(p);
+    if (!groups.has(g.key)) groups.set(g.key, { id: `${state.group}:${g.key}`, label: g.label, procs: [] });
+    groups.get(g.key).procs.push(p);
+  }
+  const out = [];
+  for (const g of groups.values()) {
+    state.groupPids.set(g.id, g.procs.map((p) => p.pid));
+    out.push({ group: g });
+    if (!state.collapsed.has(g.id)) out.push(...nest(g.procs));
+  }
+  return out;
 }
+
+const processRows = () => state.rows.filter((r) => r.p);
 
 // ---------------------------------------------------------------- render
 
-function render() {
+function render(opts) {
   if (!state.data) return;
   renderHeader();
   renderFilters();
-  renderTable();
+  renderTable(opts);
   renderBulk();
   renderLive();
 }
@@ -455,24 +599,52 @@ function render() {
 function renderHeader() {
   const d = state.data;
   $('#hostinfo').textContent = `${d.user}@${d.hostname} · ${PLATFORM_NAMES[d.platform] || d.platform} · ProcDeck PID ${d.selfPid}`;
-  $('#notice').innerHTML = d.portTool
-    ? ''
-    : d.platform === 'win32'
+  renderNotice();
+}
+
+const RELOAD_BTN = '<button class="btn small" data-reload>Reload</button>';
+
+function renderNotice() {
+  const parts = [];
+  // The server makes a new token each time it starts, so an old page can't talk to a new server.
+  if (state.error === 'down') {
+    parts.push(`<div class="notice danger" role="alert"><b>The ProcDeck server stopped.</b> Start it again with <code>node server.js</code>, then reload this page. The page needs a reload because each server start makes a new access token.${RELOAD_BTN}</div>`);
+  } else if (state.error === 'token') {
+    parts.push(`<div class="notice danger" role="alert"><b>This page is out of date.</b> The server restarted with a new access token. Reload the page to continue.${RELOAD_BTN}</div>`);
+  }
+  const d = state.data;
+  if (d && !d.portTool) {
+    parts.push(d.platform === 'win32'
       ? '<div class="notice">netstat did not run, so listening ports can\'t be shown. Check that <code>C:\\Windows\\System32</code> is on your PATH.</div>'
-      : '<div class="notice">Neither lsof nor ss was found, so listening ports can\'t be shown. On Debian/Ubuntu/Mint: <code>sudo apt install lsof</code></div>';
+      : '<div class="notice">Neither lsof nor ss was found, so listening ports can\'t be shown. On Debian/Ubuntu/Mint: <code>sudo apt install lsof</code></div>');
+  }
+  $('#notice').innerHTML = parts.join('');
 }
 
 function renderFilters() {
   const procs = state.data.processes;
   const chips = FILTERS.map((f) => {
     const n = procs.filter(f.test).length;
-    return `<button class="chip ${state.filter === f.id ? 'active' : ''}" data-filter="${f.id}">${esc(f.label)}<span class="count">${n}</span></button>`;
+    return `<button class="chip ${state.filter === f.id ? 'active' : ''}" data-filter="${f.id}" aria-pressed="${state.filter === f.id}">${esc(f.label)}<span class="count">${n}</span></button>`;
   }).join('');
   const orphans = procs.filter((p) => p.orphan && p.mine);
   const cleanup = orphans.length
     ? `<button class="btn warn small" id="cleanup" title="Stop every orphaned dev process you own, including its children">Clean up ${plural(orphans.length, 'orphan')}</button>`
     : '';
-  $('#filters').innerHTML = chips + '<span class="spacer"></span>' + cleanup;
+  $('#filters').innerHTML = chips + '<span class="spacer"></span><span class="summary" id="summary"></span>' + cleanup;
+  document.title = orphans.length ? `ProcDeck (${plural(orphans.length, 'orphan')})` : 'ProcDeck';
+}
+
+function renderSummary() {
+  const el = $('#summary');
+  if (!el) return;
+  const list = state.matched || [];
+  const cpu = list.reduce((n, p) => n + p.cpu, 0);
+  const mem = list.reduce((n, p) => n + p.rssKb, 0);
+  const hint = state.orderHeld
+    ? '<span class="hold-hint" title="Rows keep their place while you point at, focus or select them. Move the pointer away or clear the selection to sort again.">Order paused</span>'
+    : '';
+  el.innerHTML = `${plural(list.length, 'process', 'processes')} · ${cpu.toFixed(1)}% CPU · ${fmtMem(mem)}${hint}`;
 }
 
 function rowHtml({ p, depth }) {
@@ -483,14 +655,16 @@ function rowHtml({ p, depth }) {
   if (p.stat.startsWith('T')) badges.push('<span class="badge warn">paused</span>');
   if (p.cpu >= 50) badges.push(`<span class="badge hot">${Math.round(p.cpu)}% CPU</span>`);
   if (!p.mine) badges.push(`<span class="badge" title="Owned by another user">${esc(p.user)}</span>`);
-  const ports = uniquePorts(p).map((port) => `<span class="port">:${port}</span>`).join('');
+  const ports = uniquePorts(p)
+    .map((port) => `<a class="port" href="http://localhost:${port}" target="_blank" rel="noopener" title="Open http://localhost:${port}" tabindex="-1">:${port}</a>`)
+    .join('');
   const origin = p.origin
     ? `<span class="origin k-${p.origin.kind}" title="${p.origin.via === 'environment' ? 'From its environment variables' : 'From its parent chain'}">${esc(p.origin.label)}</span>`
     : '<span class="faint">–</span>';
   const folder = p.cwd ? `<span class="ellip" title="${esc(p.cwd)}">${esc(baseName(p.cwd))}</span>` : '<span class="faint">–</span>';
   const cls = [state.active === p.pid ? 'active' : '', state.selected.has(p.pid) ? 'selected' : ''].join(' ');
-  return `<tr data-pid="${p.pid}" class="${cls}">
-    <td><input type="checkbox" data-check ${state.selected.has(p.pid) ? 'checked' : ''} aria-label="Select PID ${p.pid}"></td>
+  return `<tr data-pid="${p.pid}" class="${cls}" tabindex="${state.cursor === p.pid ? 0 : -1}" aria-label="${esc(p.name)}, PID ${p.pid}">
+    <td><input type="checkbox" data-check ${state.selected.has(p.pid) ? 'checked' : ''} aria-label="Select PID ${p.pid}" tabindex="-1"></td>
     <td><div class="name-wrap" style="padding-left:${Math.min(depth, 8) * 16}px">${depth ? '<span class="branch">└</span>' : ''}<span class="nm">${esc(p.name)}</span>${badges.join('')}</div>
         <div class="sub" style="padding-left:${Math.min(depth, 8) * 16}px" title="${esc(p.args)}">${esc(tilde(p.args))}</div></td>
     <td class="num">${p.pid}</td>
@@ -505,27 +679,88 @@ function rowHtml({ p, depth }) {
   </tr>`;
 }
 
-function renderTable() {
-  const rows = visibleRows();
-  $('#rows').innerHTML = rows.map(rowHtml).join('');
+function groupHtml(g) {
+  const open = !state.collapsed.has(g.id);
+  const cpu = g.procs.reduce((n, p) => n + p.cpu, 0);
+  const mem = g.procs.reduce((n, p) => n + p.rssKb, 0);
+  return `<tr class="group" data-group="${esc(g.id)}"><td colspan="10"><div class="group-row">
+    <button class="group-toggle" data-toggle aria-expanded="${open}" title="${open ? 'Collapse' : 'Expand'} this group">
+      <span class="caret" aria-hidden="true">${open ? '▾' : '▸'}</span><span class="g-label">${esc(g.label)}</span>
+      <span class="faint">${plural(g.procs.length, 'process', 'processes')} · ${cpu.toFixed(1)}% CPU · ${fmtMem(mem)}</span></button>
+    <button class="btn small" data-stop-group title="Stop every process in this group, with its children">Stop all</button>
+  </div></td></tr>`;
+}
+
+function emptyHtml() {
+  if (state.q) {
+    return `<p>Nothing matches “${esc(state.q)}”.</p><div class="empty-actions">
+      <button class="btn small" data-empty="clear">Clear search</button>
+      ${state.filter !== 'all' ? '<button class="btn small" data-empty="all">Search everything</button>' : ''}</div>`;
+  }
+  const msg = {
+    dev: 'No dev processes are running.',
+    ports: 'Nothing is listening on a TCP port.',
+    orphans: 'No orphaned dev processes. Nothing was left behind.',
+    ai: 'No processes from AI sessions are running.',
+  }[state.filter] || 'Nothing to show.';
+  const others = FILTERS.filter((f) => f.id !== state.filter && state.data.processes.some(f.test))
+    .map((f) => `<button class="btn small" data-filter="${f.id}">${esc(f.label)}</button>`).join('');
+  return `<p>${msg}</p>${others ? `<div class="empty-actions">${others}</div>` : ''}`;
+}
+
+function renderTable(opts) {
+  const rows = visibleRows(opts);
+  state.rows = rows;
+  const procs = processRows();
+  // Roving tabindex: exactly one row is in the Tab order, the one the cursor is on.
+  if (!procs.some((r) => r.p.pid === state.cursor)) state.cursor = procs[0]?.p.pid ?? null;
+  const hadFocus = !!document.activeElement?.closest?.('#rows tr[data-pid]');
+  state.rendering = true;
+  $('#rows').innerHTML = rows.map((r) => (r.group ? groupHtml(r.group) : rowHtml(r))).join('');
+  if (hadFocus) $(`#rows tr[data-pid="${state.cursor}"]`)?.focus({ preventScroll: true });
+  state.rendering = false;
   const empty = $('#empty');
   empty.hidden = rows.length > 0;
-  if (!rows.length) {
-    empty.textContent = state.q
-      ? 'Nothing matches that filter.'
-      : state.filter === 'orphans'
-        ? 'No orphaned dev processes. Nothing has been left behind.'
-        : state.filter === 'ai'
-          ? 'No processes from AI sessions are running.'
-          : 'Nothing to show.';
-  }
+  if (!rows.length) empty.innerHTML = emptyHtml();
   document.querySelectorAll('thead th[data-sort]').forEach((th) => {
     const key = th.dataset.sort;
     th.querySelector('.arrow')?.remove();
-    if (key === state.sort.key) th.insertAdjacentHTML('beforeend', `<span class="arrow"> ${state.sort.dir < 0 ? '↓' : '↑'}</span>`);
+    const on = key === state.sort.key;
+    th.setAttribute('aria-sort', on ? (state.sort.dir < 0 ? 'descending' : 'ascending') : 'none');
+    if (on) th.insertAdjacentHTML('beforeend', `<span class="arrow" aria-hidden="true"> ${state.sort.dir < 0 ? '↓' : '↑'}</span>`);
   });
-  const allSel = rows.length > 0 && rows.every(({ p }) => state.selected.has(p.pid));
-  $('#check-all').checked = allSel;
+  $('#check-all').checked = procs.length > 0 && procs.every(({ p }) => state.selected.has(p.pid));
+  renderSummary();
+}
+
+function moveCursor(to) {
+  const procs = processRows();
+  if (!procs.length) return;
+  let i = procs.findIndex((r) => r.p.pid === state.cursor);
+  if (to === 'first') i = 0;
+  else if (to === 'last') i = procs.length - 1;
+  else i = i < 0 ? 0 : Math.max(0, Math.min(procs.length - 1, i + to));
+  state.cursor = procs[i].p.pid;
+  document.querySelectorAll('#rows tr[data-pid]').forEach((tr) => {
+    tr.tabIndex = Number(tr.dataset.pid) === state.cursor ? 0 : -1;
+  });
+  const tr = $(`#rows tr[data-pid="${state.cursor}"]`);
+  tr?.focus({ preventScroll: true });
+  tr?.scrollIntoView({ block: 'nearest' });
+}
+
+// Shift selects every row between this one and the last one ticked.
+function toggleSelect(pid, on, range = false) {
+  const pids = processRows().map((r) => r.p.pid);
+  const a = pids.indexOf(state.lastChecked);
+  const b = pids.indexOf(pid);
+  const span = range && a >= 0 && b >= 0 ? pids.slice(Math.min(a, b), Math.max(a, b) + 1) : [pid];
+  for (const id of span) {
+    if (on) state.selected.add(id); else state.selected.delete(id);
+  }
+  state.lastChecked = pid;
+  renderTable();
+  renderBulk();
 }
 
 function renderBulk() {
@@ -644,12 +879,17 @@ function renderPanel() {
         <button class="btn primary" data-act="term" ${disabled} title="${isWin() ? 'End it now. Windows has no clean-shutdown signal for console programs.' : 'Send SIGTERM: ask it to shut down cleanly'}">Stop</button>
         <button class="btn" data-act="tree" ${disabled || (d.descendantCount ? '' : 'disabled')} title="${isWin() ? 'End this process and everything it started' : 'SIGTERM this process and everything it started'}">Stop with ${d.descendantCount ? plural(d.descendantCount, 'child', 'children') : 'children'}</button>
         <button class="btn danger-outline" data-act="kill" ${disabled} title="${isWin() ? 'End it immediately' : 'Send SIGKILL: end it immediately'}">Force kill</button>
-        <button class="btn" data-act="open" ${d.cwd ? '' : 'disabled'} title="Open the working folder in your file manager">Open folder</button>
-        <button class="btn" data-act="copy" title="Copy the full command line">Copy command</button>
+      </div>
+      <div class="actions" style="padding-top:0">
+        <button class="btn small" data-act="open" ${d.cwd ? '' : 'disabled'} title="Open the working folder in your file manager">Open folder</button>
+        <button class="btn small" data-copy="args" title="Copy the full command line">Copy command</button>
+        <button class="btn small" data-copy="pid">Copy PID</button>
+        <button class="btn small" data-copy="cwd" ${d.cwd ? '' : 'disabled'} title="Copy the working folder path">Copy folder</button>
       </div>
 
       <section><h3>Overview</h3>
         <dl class="kv" id="live-stats"></dl>
+        <div class="sparks" id="live-spark"></div>
       </section>
 
       <section><h3>Command</h3><pre class="cmd">${esc(p.args)}</pre></section>
@@ -697,6 +937,53 @@ function renderLive() {
     <dt>Running for</dt><dd>${fmtAge(p.ageSec)}</dd>
     <dt>Parent</dt><dd>${p.ppid > 0 ? `<button class="link" data-goto="${p.ppid}">PID ${p.ppid}</button>` : '–'}</dd>
     <dt>Children</dt><dd>${p.childCount} direct${state.detail.descendantCount > p.childCount ? `, ${state.detail.descendantCount} in total` : ''}</dd>`;
+  const samples = state.history.get(p.pid)?.samples || [];
+  $('#live-spark').innerHTML = samples.length < 2 ? '' : [
+    spark(samples.map((s) => s[0]), { label: 'CPU', cls: 'cpu', floor: 5, fmt: (v) => `${v.toFixed(1)}%` }),
+    spark(samples.map((s) => s[1]), { label: 'Memory', cls: 'mem', fmt: fmtMem }),
+  ].join('');
+}
+
+// CPU scales from zero, with a floor so idle noise stays flat. Memory scales
+// between its own low and high, because it rarely moves far from where it started.
+function spark(values, { label, cls, fmt, floor = null }) {
+  const w = 200, h = 26;
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  // The memory scale spans at least 20% of the peak, so changes of a few KB stay flat.
+  const pad = floor === null ? Math.max(0, max * 0.2 - (max - min)) / 2 : 0;
+  const lo = floor === null ? Math.max(0, min - pad) : 0;
+  const hi = floor === null ? max + pad : Math.max(max, floor);
+  const step = w / (HISTORY - 1);
+  const pts = values.map((v, i) => {
+    const x = w - (values.length - 1 - i) * step;
+    const y = hi === lo ? h / 2 : h - 2 - ((v - lo) / (hi - lo)) * (h - 4);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const range = floor !== null ? `peak ${fmt(max)}` : fmt(min) === fmt(max) ? fmt(max) : `${fmt(min)} – ${fmt(max)}`;
+  const span = fmtAge(Math.round(((values.length - 1) * REFRESH_MS) / 1000));
+  return `<div class="spark"><span class="dim">${label}, last ${span}</span>
+    <svg class="${cls}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="${label} over the last ${span}: ${range}">
+      <polyline points="${pts}" fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>
+    <span class="mono faint">${range}</span></div>`;
+}
+
+// One sample per server snapshot. A manual refresh within the server's cache window
+// returns the same snapshot, so generatedAt guards against counting it twice.
+function recordHistory() {
+  const d = state.data;
+  if (d.generatedAt === state.lastSampleAt) return;
+  state.lastSampleAt = d.generatedAt;
+  const alive = new Set();
+  for (const p of d.processes) {
+    alive.add(p.pid);
+    // PIDs get reused. A different command line means a different process.
+    let h = state.history.get(p.pid);
+    if (!h || h.args !== p.args) state.history.set(p.pid, (h = { args: p.args, samples: [] }));
+    h.samples.push([p.cpu, p.rssKb]);
+    if (h.samples.length > HISTORY) h.samples.shift();
+  }
+  for (const pid of state.history.keys()) if (!alive.has(pid)) state.history.delete(pid);
 }
 
 function markPanelGone() {
@@ -838,15 +1125,78 @@ function buildPlan(pids, { signal, tree }) {
   };
 }
 
+// Opens #modal with the given HTML. Tab stays inside the dialog, Esc and a click
+// on the backdrop close it, and focus goes back to where it was.
+function openModal(html, onClose) {
+  const modal = $('#modal');
+  const box = $('#modal-box');
+  const prev = document.activeElement;
+  box.innerHTML = html;
+  modal.hidden = false;
+  state.modalOpen = true;
+  const close = () => {
+    modal.hidden = true;
+    state.modalOpen = false;
+    modal.onclick = null;
+    document.removeEventListener('keydown', onKey, true);
+    // A refresh can replace the row that had focus, so fall back to the cursor row.
+    if (prev?.isConnected && prev !== document.body) prev.focus();
+    else $(`#rows tr[data-pid="${state.cursor}"]`)?.focus();
+    onClose?.();
+  };
+  const onKey = (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      close();
+    } else if (e.key === 'Tab') {
+      const items = [...box.querySelectorAll('button, input, a[href]')].filter((el) => !el.disabled);
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (!box.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+      else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  };
+  document.addEventListener('keydown', onKey, true);
+  modal.onclick = (e) => { if (e.target === modal) close(); };
+  return close;
+}
+
+const SHORTCUTS = [
+  ['/', 'Search'],
+  ['Esc', 'Clear the search, close the panel, or clear the selection'],
+  ['↑ ↓ or k j', 'Move between rows'],
+  ['Home End', 'Go to the first or last row'],
+  ['Enter or o', 'Open the detail panel for the row'],
+  ['Space', 'Select or deselect the row'],
+  ['Shift + click', 'Select every row between two ticked rows'],
+  ['Delete', 'Stop the selected rows, or the row you are on'],
+  ['r', 'Refresh now'],
+  ['?', 'Show this list'],
+];
+
+function showHelp() {
+  if (state.modalOpen) return;
+  const keys = SHORTCUTS.map(([k, what]) => `<dt>${k.split(' ').map((x) => (/^(or|\+)$/.test(x) ? ` ${x} ` : `<kbd>${esc(x)}</kbd> `)).join('')}</dt><dd>${esc(what)}</dd>`).join('');
+  const close = openModal(`
+    <h2 id="modal-title">Keyboard shortcuts</h2>
+    <div class="dim">Typing <code>:3000</code> in the search finds whatever holds that port.</div>
+    <dl class="keys">${keys}</dl>
+    <div class="modal-actions"><button class="btn primary" id="m-ok">Close</button></div>`);
+  $('#m-ok').onclick = close;
+  $('#m-ok').focus();
+}
+
 function showConfirm(plan) {
   return new Promise((resolve) => {
-    const modal = $('#modal');
-    const box = $('#modal-box');
     const list = plan.affected.slice(0, 40).map(({ p, child }) => `
       <div><span class="t-name">${child ? '<span class="faint">└ </span>' : ''}${esc(p.name)}</span>
         <span class="t-meta">PID ${p.pid}${p.cwd ? ` · ${esc(baseName(p.cwd))}` : ''}${p.ports.length ? ` · ${uniquePorts(p).map((x) => ':' + x).join(' ')}` : ''}</span></div>`).join('');
-    box.innerHTML = `
-      <h2>${plan.title}</h2>
+    let result = false;
+    const close = openModal(`
+      <h2 id="modal-title">${plan.title}</h2>
       <div class="dim">Signal: ${plan.signal}${plan.tree ? ' · includes child processes' : ''}</div>
       <div class="targets">${list}${plan.affected.length > 40 ? `<div class="dim">…and ${plan.affected.length - 40} more</div>` : ''}</div>
       <div class="warnings">${plan.warnings.map((w) => `<div class="callout ${w.level}">${w.text}</div>`).join('')}</div>
@@ -854,24 +1204,11 @@ function showConfirm(plan) {
       <div class="modal-actions">
         <button class="btn" id="m-cancel">Cancel</button>
         <button class="btn ${plan.signal === 'SIGKILL' || plan.needsAck ? 'danger' : 'primary'}" id="m-ok" ${plan.needsAck ? 'disabled' : ''}>${plan.confirmLabel}</button>
-      </div>`;
-    modal.hidden = false;
-    state.modalOpen = true;
+      </div>`, () => resolve(result));
 
     const ok = $('#m-ok');
-    const close = (result) => {
-      modal.hidden = true;
-      state.modalOpen = false;
-      document.removeEventListener('keydown', onKey, true);
-      resolve(result);
-    };
-    const onKey = (e) => {
-      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(false); }
-    };
-    document.addEventListener('keydown', onKey, true);
-    $('#m-cancel').onclick = () => close(false);
-    ok.onclick = () => close(true);
-    modal.onclick = (e) => { if (e.target === modal) close(false); };
+    $('#m-cancel').onclick = close;
+    ok.onclick = () => { result = true; close(); };
     const ack = $('#ack');
     if (ack) ack.onchange = () => { ok.disabled = !ack.checked; };
     // Risky actions start focused on Cancel so a stray Enter does nothing harmful.
@@ -888,6 +1225,7 @@ async function confirmAndKill(pids, { signal = 'SIGTERM', tree = false } = {}) {
 }
 
 async function runKill(plan) {
+  state.busy = true;
   setStatus(plan.signal === 'SIGKILL' ? 'Killing…' : 'Stopping…');
   try {
     const res = await post('/api/kill', {
@@ -901,6 +1239,7 @@ async function runKill(plan) {
   } catch (e) {
     toast(`Couldn't send the signal: ${e.message}`, { level: 'danger' });
   }
+  state.busy = false;
   await refresh();
   if (state.active && !state.detailGone) openPanel(state.active, { keepScroll: true });
 }
@@ -927,6 +1266,7 @@ function report(res) {
 function toast(msg, { level = 'info', action = null, timeout = 5000 } = {}) {
   const el = document.createElement('div');
   el.className = `toast ${level}`;
+  if (level === 'danger') el.setAttribute('role', 'alert');
   const span = document.createElement('span');
   span.textContent = msg;
   el.append(span);
@@ -944,7 +1284,10 @@ function toast(msg, { level = 'info', action = null, timeout = 5000 } = {}) {
   x.onclick = () => el.remove();
   el.append(x);
   $('#toasts').append(el);
-  setTimeout(() => el.remove(), timeout);
+  // The timer stops while the pointer is on the toast, so there is time to read it or click its action.
+  let timer = setTimeout(() => el.remove(), timeout);
+  el.onmouseenter = () => clearTimeout(timer);
+  el.onmouseleave = () => { timer = setTimeout(() => el.remove(), 2500); };
 }
 
 // --------------------------------------------------------------- refresh
@@ -955,59 +1298,109 @@ function setStatus(text, bad = false) {
   el.classList.toggle('bad', bad);
 }
 
+function renderStatus() {
+  if (state.busy) return; // runKill shows "Stopping…" until it is done
+  if (state.error) {
+    return setStatus({ down: 'Server not responding', token: 'Reload needed' }[state.error] || state.errorText, true);
+  }
+  if (!state.lastOk) return setStatus('Loading…');
+  const ago = Math.round((Date.now() - state.lastOk) / 1000);
+  const suffix = !state.auto ? ' · auto-refresh off' : document.hidden ? ' · paused' : '';
+  setStatus(`Updated ${ago < 2 ? 'just now' : `${fmtAge(ago)} ago`}${suffix}`);
+}
+
 async function refresh() {
   if (state.loading) return;
   state.loading = true;
   try {
     state.data = await api('/api/processes');
+    state.error = null;
+    state.lastOk = Date.now();
+    recordHistory();
     const alive = new Set(state.data.processes.map((p) => p.pid));
     for (const pid of state.selected) if (!alive.has(pid)) state.selected.delete(pid);
     if (state.active && !alive.has(state.active)) markPanelGone();
     render();
-    setStatus(`Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`);
   } catch (e) {
-    setStatus(/fetch/i.test(e.message) ? 'ProcDeck server stopped' : e.message, true);
+    state.error = e.status === 401 ? 'token' : /fetch/i.test(e.message) ? 'down' : 'other';
+    state.errorText = e.message;
+    renderNotice();
   } finally {
     state.loading = false;
+    renderStatus();
   }
 }
 
 // ---------------------------------------------------------------- events
 
+function setFilter(id) {
+  state.filter = id;
+  savePrefs();
+  render({ resort: true });
+}
+
+function setSearch(value) {
+  $('#q').value = value;
+  state.q = value;
+  $('#q-clear').hidden = !value;
+  renderTable({ resort: true });
+}
+
 $('#filters').addEventListener('click', (e) => {
   const chip = e.target.closest('[data-filter]');
-  if (chip) {
-    state.filter = chip.dataset.filter;
-    savePrefs();
-    render();
-    return;
-  }
+  if (chip) return setFilter(chip.dataset.filter);
   if (e.target.closest('#cleanup')) {
     const pids = state.data.processes.filter((p) => p.orphan && p.mine).map((p) => p.pid);
     confirmAndKill(pids, { signal: 'SIGTERM', tree: true });
   }
 });
 
+$('#empty').addEventListener('click', (e) => {
+  const chip = e.target.closest('[data-filter]');
+  if (chip) return setFilter(chip.dataset.filter);
+  const act = e.target.closest('[data-empty]')?.dataset.empty;
+  if (act === 'clear') { setSearch(''); $('#q').focus(); }
+  else if (act === 'all') setFilter('all');
+});
+
+$('#notice').addEventListener('click', (e) => {
+  if (e.target.closest('[data-reload]')) location.reload();
+});
+
 $('#rows').addEventListener('click', (e) => {
+  const grp = e.target.closest('tr[data-group]');
+  if (grp) {
+    const id = grp.dataset.group;
+    if (e.target.closest('[data-stop-group]')) {
+      confirmAndKill(state.groupPids.get(id) || [], { signal: 'SIGTERM', tree: true });
+    } else if (e.target.closest('[data-toggle]')) {
+      if (state.collapsed.has(id)) state.collapsed.delete(id); else state.collapsed.add(id);
+      renderTable();
+    }
+    return;
+  }
   const tr = e.target.closest('tr[data-pid]');
-  if (!tr) return;
+  if (!tr || e.target.closest('a')) return; // port links open in a new tab, not the panel
   const pid = Number(tr.dataset.pid);
-  if (e.target.closest('[data-check]')) {
-    if (e.target.checked) state.selected.add(pid); else state.selected.delete(pid);
-    renderTable();
-    renderBulk();
-    return;
-  }
-  if (e.target.closest('[data-stop]')) {
-    confirmAndKill([pid], { signal: 'SIGTERM' });
-    return;
-  }
+  state.cursor = pid;
+  if (e.target.closest('[data-check]')) return toggleSelect(pid, e.target.checked, e.shiftKey);
+  if (e.target.closest('[data-stop]')) return confirmAndKill([pid], { signal: 'SIGTERM' });
   openPanel(pid);
 });
 
+$('#rows').addEventListener('mouseenter', () => { state.hover = true; });
+$('#rows').addEventListener('mouseleave', () => {
+  state.hover = false;
+  if (state.orderHeld) renderTable();
+});
+// Removing the focused row during a render can fire focusout, so ignore those.
+$('#rows').addEventListener('focusout', (e) => {
+  if (state.rendering || e.relatedTarget?.closest?.('#rows')) return;
+  setTimeout(() => { if (state.orderHeld && !holding()) renderTable(); }, 0);
+});
+
 $('#check-all').addEventListener('change', (e) => {
-  const rows = visibleRows();
-  for (const { p } of rows) {
+  for (const { p } of processRows()) {
     if (e.target.checked) state.selected.add(p.pid); else state.selected.delete(p.pid);
   }
   renderTable();
@@ -1020,7 +1413,7 @@ document.querySelector('thead').addEventListener('click', (e) => {
   const key = th.dataset.sort;
   state.sort = { key, dir: state.sort.key === key ? -state.sort.dir : ['name', 'project', 'origin', 'pid', 'ports'].includes(key) ? 1 : -1 };
   savePrefs();
-  renderTable();
+  renderTable({ resort: true });
 });
 
 $('#panel').addEventListener('click', async (e) => {
@@ -1034,18 +1427,22 @@ $('#panel').addEventListener('click', async (e) => {
   const rev = t.closest('[data-reveal]');
   if (rev) return loadEnv(rev.dataset.reveal === '1');
   if (t.closest('[data-load-files]')) return loadFiles();
-  const act = t.closest('[data-act]')?.dataset.act;
-  if (!act || !state.detail) return;
+  if (!state.detail) return;
   const pid = state.detail.process.pid;
+  const copy = t.closest('[data-copy]')?.dataset.copy;
+  if (copy) {
+    const [label, text] = { args: ['Command', state.detail.process.args], pid: ['PID', String(pid)], cwd: ['Folder', state.detail.cwd] }[copy];
+    try { await navigator.clipboard.writeText(text); toast(`${label} copied.`, { level: 'ok' }); }
+    catch { toast("Couldn't access the clipboard.", { level: 'warn' }); }
+    return;
+  }
+  const act = t.closest('[data-act]')?.dataset.act;
   if (act === 'term') confirmAndKill([pid], { signal: 'SIGTERM' });
   else if (act === 'tree') confirmAndKill([pid], { signal: 'SIGTERM', tree: true });
   else if (act === 'kill') confirmAndKill([pid], { signal: 'SIGKILL' });
   else if (act === 'open') {
     try { const r = await post('/api/open', { pid }); toast(`Opened ${tilde(r.opened)}`, { level: 'ok' }); }
     catch (err) { toast(err.message, { level: 'danger' }); }
-  } else if (act === 'copy') {
-    try { await navigator.clipboard.writeText(state.detail.process.args); toast('Command copied.', { level: 'ok' }); }
-    catch { toast("Couldn't access the clipboard.", { level: 'warn' }); }
   }
 });
 
@@ -1057,12 +1454,18 @@ $('#panel').addEventListener('input', (e) => {
   });
 });
 
-$('#q').addEventListener('input', (e) => { state.q = e.target.value; renderTable(); });
+$('#q').addEventListener('input', (e) => setSearch(e.target.value));
+$('#q-clear').addEventListener('click', () => { setSearch(''); $('#q').focus(); });
 $('#opt-tree').checked = state.tree;
 $('#opt-auto').checked = state.auto;
-$('#opt-tree').addEventListener('change', (e) => { state.tree = e.target.checked; savePrefs(); renderTable(); });
-$('#opt-auto').addEventListener('change', (e) => { state.auto = e.target.checked; savePrefs(); });
+$('#opt-group').value = state.group;
+$('#opt-theme').value = state.theme;
+$('#opt-tree').addEventListener('change', (e) => { state.tree = e.target.checked; savePrefs(); renderTable({ resort: true }); });
+$('#opt-auto').addEventListener('change', (e) => { state.auto = e.target.checked; savePrefs(); renderStatus(); });
+$('#opt-group').addEventListener('change', (e) => { state.group = e.target.value; savePrefs(); renderTable({ resort: true }); });
+$('#opt-theme').addEventListener('change', (e) => { state.theme = e.target.value; savePrefs(); applyTheme(); });
 $('#refresh').addEventListener('click', refresh);
+$('#help').addEventListener('click', showHelp);
 
 $('#bulk-stop').addEventListener('click', () => confirmAndKill([...state.selected], { signal: 'SIGTERM' }));
 $('#bulk-tree').addEventListener('click', () => confirmAndKill([...state.selected], { signal: 'SIGTERM', tree: true }));
@@ -1070,19 +1473,41 @@ $('#bulk-kill').addEventListener('click', () => confirmAndKill([...state.selecte
 $('#bulk-clear').addEventListener('click', () => { state.selected.clear(); render(); });
 
 document.addEventListener('keydown', (e) => {
-  if (state.modalOpen) return;
-  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName) && document.activeElement.type !== 'checkbox';
-  if (e.key === '/' && !typing) {
+  if (state.modalOpen || e.metaKey || e.ctrlKey || e.altKey) return;
+  const el = document.activeElement;
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(el?.tagName) && el.type !== 'checkbox';
+  const onRow = !!el?.matches?.('#rows tr[data-pid]');
+  const key = e.key;
+  if (key === '/' && !typing) {
     e.preventDefault();
     $('#q').focus();
-  } else if (e.key === 'Escape') {
-    if (typing) document.activeElement.blur();
+  } else if (key === 'Escape') {
+    if (el === $('#q') && $('#q').value) setSearch('');
+    else if (typing) el.blur();
     else if (state.active) closePanel();
     else if (state.selected.size) { state.selected.clear(); render(); }
-  } else if ((e.key === 'Delete' || e.key === 'Backspace') && !typing) {
-    const pids = state.selected.size ? [...state.selected] : state.active ? [state.active] : [];
+  } else if (typing) {
+    // Every other shortcut is a plain letter or key that the user may be typing.
+  } else if (key === 'ArrowDown' || key === 'j') {
+    e.preventDefault();
+    moveCursor(1);
+  } else if (key === 'ArrowUp' || key === 'k') {
+    e.preventDefault();
+    moveCursor(-1);
+  } else if ((key === 'Home' || key === 'End') && onRow) {
+    e.preventDefault();
+    moveCursor(key === 'Home' ? 'first' : 'last');
+  } else if ((key === 'Enter' && onRow) || key === 'o') {
+    if (state.cursor != null) { e.preventDefault(); openPanel(state.cursor); }
+  } else if (key === ' ' && onRow) {
+    e.preventDefault();
+    toggleSelect(state.cursor, !state.selected.has(state.cursor), e.shiftKey);
+  } else if (key === '?') {
+    showHelp();
+  } else if (key === 'Delete' || key === 'Backspace') {
+    const pids = state.selected.size ? [...state.selected] : state.active ? [state.active] : onRow ? [state.cursor] : [];
     if (pids.length) { e.preventDefault(); confirmAndKill(pids, { signal: 'SIGTERM' }); }
-  } else if (e.key === 'r' && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
+  } else if (key === 'r') {
     refresh();
   }
 });
@@ -1090,6 +1515,14 @@ document.addEventListener('keydown', (e) => {
 setInterval(() => {
   if (state.auto && !document.hidden && !state.modalOpen) refresh();
 }, REFRESH_MS);
+setInterval(renderStatus, 1000);
+document.addEventListener('visibilitychange', renderStatus);
+// The first Windows snapshot waits for the PowerShell helper to compile.
+setTimeout(() => {
+  if (!state.data && !state.error) {
+    $('#empty').insertAdjacentHTML('beforeend', '<p class="faint">On Windows, the first load takes a few seconds while ProcDeck starts its helper.</p>');
+  }
+}, 2000);
 refresh();
 </script>
 </body>
