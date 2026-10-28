@@ -362,7 +362,10 @@ function fmtMem(kb) {
 }
 function fmtBytes(b) { return b < 1024 ? `${b} B` : fmtMem(Math.round(b / 1024)); }
 const tilde = (s) => (s && state.data?.home ? String(s).split(state.data.home).join('~') : s || '');
-const baseName = (p) => (p ? p.replace(/\/+$/, '').split('/').pop() || '/' : '');
+const baseName = (p) => (p ? p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p : '');
+// Windows has no polite stop signal for console programs, so every stop is a force kill there.
+const isWin = () => state.data?.platform === 'win32';
+const PLATFORM_NAMES = { darwin: 'macOS', linux: 'Linux', win32: 'Windows' };
 const uniquePorts = (p) => [...new Set(p.ports.map((x) => x.port))].sort((a, b) => a - b);
 
 const STATE_LABELS = {
@@ -451,10 +454,12 @@ function render() {
 
 function renderHeader() {
   const d = state.data;
-  $('#hostinfo').textContent = `${d.user}@${d.hostname} · ${d.platform === 'darwin' ? 'macOS' : 'Linux'} · ProcDeck PID ${d.selfPid}`;
+  $('#hostinfo').textContent = `${d.user}@${d.hostname} · ${PLATFORM_NAMES[d.platform] || d.platform} · ProcDeck PID ${d.selfPid}`;
   $('#notice').innerHTML = d.portTool
     ? ''
-    : '<div class="notice">Neither lsof nor ss was found, so listening ports can\'t be shown. On Debian/Ubuntu/Mint: <code>sudo apt install lsof</code></div>';
+    : d.platform === 'win32'
+      ? '<div class="notice">netstat did not run, so listening ports can\'t be shown. Check that <code>C:\\Windows\\System32</code> is on your PATH.</div>'
+      : '<div class="notice">Neither lsof nor ss was found, so listening ports can\'t be shown. On Debian/Ubuntu/Mint: <code>sudo apt install lsof</code></div>';
 }
 
 function renderFilters() {
@@ -636,9 +641,9 @@ function renderPanel() {
     <div class="panel-body">
       ${callouts.join('')}
       <div class="actions">
-        <button class="btn primary" data-act="term" ${disabled} title="Send SIGTERM: ask it to shut down cleanly">Stop</button>
-        <button class="btn" data-act="tree" ${disabled || (d.descendantCount ? '' : 'disabled')} title="SIGTERM this process and everything it started">Stop with ${d.descendantCount ? plural(d.descendantCount, 'child', 'children') : 'children'}</button>
-        <button class="btn danger-outline" data-act="kill" ${disabled} title="Send SIGKILL: end it immediately">Force kill</button>
+        <button class="btn primary" data-act="term" ${disabled} title="${isWin() ? 'End it now. Windows has no clean-shutdown signal for console programs.' : 'Send SIGTERM: ask it to shut down cleanly'}">Stop</button>
+        <button class="btn" data-act="tree" ${disabled || (d.descendantCount ? '' : 'disabled')} title="${isWin() ? 'End this process and everything it started' : 'SIGTERM this process and everything it started'}">Stop with ${d.descendantCount ? plural(d.descendantCount, 'child', 'children') : 'children'}</button>
+        <button class="btn danger-outline" data-act="kill" ${disabled} title="${isWin() ? 'End it immediately' : 'Send SIGKILL: end it immediately'}">Force kill</button>
         <button class="btn" data-act="open" ${d.cwd ? '' : 'disabled'} title="Open the working folder in your file manager">Open folder</button>
         <button class="btn" data-act="copy" title="Copy the full command line">Copy command</button>
       </div>
@@ -665,7 +670,7 @@ function renderPanel() {
 
       <section><h3>Output</h3>
         ${stdio}
-        ${noReadable ? '<div class="dim" style="font-size:12.5px;margin-top:6px">ProcDeck can only read output that goes to a file. Output sent to a terminal or a pipe can\'t be recovered after the fact.</div>' : ''}
+        ${!d.stdio.length ? '<div class="dim" style="font-size:12.5px">Windows doesn\'t show where another process\'s output goes, so ProcDeck can\'t read it back.</div>' : noReadable ? '<div class="dim" style="font-size:12.5px;margin-top:6px">ProcDeck can only read output that goes to a file. Output sent to a terminal or a pipe can\'t be recovered after the fact.</div>' : ''}
         <pre class="log" id="tail-out" hidden></pre>
       </section>
 
@@ -673,9 +678,9 @@ function renderPanel() {
         <div id="env-out"><span class="dim">Environment variables it was started with. Values that look like secrets stay masked.</span></div>
       </section>
 
-      <section><h3>Open files <button class="btn small" data-load-files>Load</button></h3>
+      ${isWin() ? '' : `<section><h3>Open files <button class="btn small" data-load-files>Load</button></h3>
         <div id="files-out"><span class="dim">Files, sockets and pipes it has open right now.</span></div>
-      </section>
+      </section>`}
     </div>`;
   renderLive();
 }
@@ -686,7 +691,7 @@ function renderLive() {
   if (!el || !state.detail || !state.data) return;
   const p = state.data.processes.find((x) => x.pid === state.detail.process.pid) || state.detail.process;
   el.innerHTML = `
-    <dt>State</dt><dd>${esc(STATE_LABELS[p.stat[0]] || p.stat)}</dd>
+    ${p.stat ? `<dt>State</dt><dd>${esc(STATE_LABELS[p.stat[0]] || p.stat)}</dd>` : ''}
     <dt>CPU</dt><dd>${p.cpu.toFixed(1)}%</dd>
     <dt>Memory</dt><dd>${fmtMem(p.rssKb)} (${p.mem.toFixed(1)}% of RAM)</dd>
     <dt>Running for</dt><dd>${fmtAge(p.ageSec)}</dd>
@@ -802,7 +807,9 @@ function buildPlan(pids, { signal, tree }) {
       warnings.push({ level: 'info', text: `${plural(childCount, 'child process', 'child processes')} won't be signalled and may keep running as orphans. Use "Stop with children" to include them.` });
     }
   }
-  if (signal === 'SIGKILL') {
+  if (isWin()) {
+    warnings.push({ level: 'warn', text: '<b>Windows ends the process immediately.</b> Console programs such as Node have no clean-shutdown signal that another process can send. The process gets no chance to save state, close connections or delete lock files.' });
+  } else if (signal === 'SIGKILL') {
     warnings.push({ level: 'warn', text: '<b>Force kill (SIGKILL)</b> ends the process immediately. It gets no chance to save state, close connections, delete lock files or stop its own children.' });
   } else {
     warnings.push({ level: 'info', text: 'Sends SIGTERM, the polite "please exit" signal. Dev servers normally shut down within a second. You can force kill anything that ignores it.' });

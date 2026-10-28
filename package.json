@@ -14,7 +14,13 @@
   },
   "os": [
     "darwin",
-    "linux"
+    "linux",
+    "win32"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "files": [
+    "server.js",
+    "index.html",
+    "windows-helper.ps1"
+  ]
 }
