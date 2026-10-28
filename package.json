@@ -1,0 +1,20 @@
+{
+  "name": "procdeck",
+  "version": "0.1.0",
+  "description": "Local web UI to find, trace and stop leftover dev processes (Node servers, watchers, AI agent sessions).",
+  "type": "module",
+  "bin": {
+    "procdeck": "./server.js"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "license": "MIT"
+}

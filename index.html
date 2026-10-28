@@ -1,0 +1,1089 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ProcDeck</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #f5f6f8; --surface: #ffffff; --surface-2: #eef0f3; --border: #dde1e7;
+  --text: #1a1e24; --muted: #5a6370; --faint: #8b93a0;
+  --accent: #2c6bd9; --accent-soft: #e5edfb;
+  --warn: #a35f00; --warn-soft: #fff2dc;
+  --danger: #c22c2c; --danger-soft: #fde8e8;
+  --ok: #23824a; --ok-soft: #e2f4e8;
+  --ai: #7446d6; --ai-soft: #efe8fc;
+  --mono: ui-monospace, SFMono-Regular, Menlo, "DejaVu Sans Mono", Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1014; --surface: #15181e; --surface-2: #1c2028; --border: #282d37;
+    --text: #e4e7ec; --muted: #a0a9b6; --faint: #6a7382;
+    --accent: #6b9cff; --accent-soft: #1b2944;
+    --warn: #f0a43a; --warn-soft: #31240f;
+    --danger: #ff6b6b; --danger-soft: #381717;
+    --ok: #5cc985; --ok-soft: #12291b;
+    --ai: #b598ff; --ai-soft: #261c3b;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg); color: var(--text); font: 14px/1.45 var(--sans);
+  display: grid; grid-template-rows: auto auto auto 1fr; overflow: hidden;
+}
+button { font: inherit; color: inherit; }
+code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
+.dim { color: var(--muted); }
+.faint { color: var(--faint); }
+
+/* top bar */
+.top {
+  display: flex; align-items: center; gap: 16px; padding: 10px 16px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.brand { display: flex; align-items: baseline; gap: 10px; white-space: nowrap; }
+.brand b { font-size: 16px; letter-spacing: -0.01em; }
+.brand .dim { font-size: 12px; }
+.search { flex: 1; max-width: 520px; }
+.search input {
+  width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid var(--border);
+  background: var(--bg); color: var(--text); font: inherit;
+}
+.search input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.controls { display: flex; align-items: center; gap: 14px; margin-left: auto; white-space: nowrap; font-size: 13px; }
+.controls label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+#status { font-size: 12px; color: var(--faint); min-width: 110px; text-align: right; }
+#status.bad { color: var(--danger); }
+
+/* filters */
+.filters {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 16px;
+  border-bottom: 1px solid var(--border); background: var(--surface);
+}
+.chip {
+  border: 1px solid var(--border); background: var(--surface); border-radius: 999px;
+  padding: 3px 11px; cursor: pointer; font-size: 13px; display: inline-flex; gap: 6px; align-items: center;
+}
+.chip .count { color: var(--faint); font-variant-numeric: tabular-nums; }
+.chip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.chip.active .count { color: var(--accent); }
+.filters .spacer { flex: 1; }
+
+/* buttons */
+.btn {
+  border: 1px solid var(--border); background: var(--surface); border-radius: 7px;
+  padding: 5px 12px; cursor: pointer; font-size: 13px; white-space: nowrap;
+}
+.btn:hover:not(:disabled) { background: var(--surface-2); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.08); }
+.btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn.danger:hover:not(:disabled) { background: var(--danger); filter: brightness(1.08); }
+.btn.danger-outline { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+.btn.warn { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 40%, var(--border)); color: var(--warn); }
+.btn.small { padding: 2px 9px; font-size: 12px; }
+.link { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; text-align: left; }
+.link:hover { text-decoration: underline; }
+.icon {
+  background: none; border: 0; cursor: pointer; color: var(--faint);
+  width: 26px; height: 26px; border-radius: 6px; display: inline-grid; place-items: center; font-size: 17px;
+}
+.icon:hover { background: var(--surface-2); color: var(--text); }
+.icon.stop:hover { color: var(--danger); background: var(--danger-soft); }
+
+/* bulk bar */
+.bulk {
+  display: flex; align-items: center; gap: 8px; padding: 7px 16px;
+  background: var(--accent-soft); border-bottom: 1px solid var(--border);
+}
+.bulk[hidden] { display: none; }
+.bulk strong { margin-right: 6px; }
+
+/* layout */
+.layout { display: flex; min-height: 0; }
+.list { flex: 1; overflow: auto; min-width: 0; }
+.panel {
+  width: 470px; flex-shrink: 0; border-left: 1px solid var(--border); background: var(--surface);
+  overflow: auto;
+}
+.panel[hidden] { display: none; }
+@media (max-width: 1150px) {
+  .panel { position: fixed; right: 0; top: 0; bottom: 0; z-index: 20; box-shadow: -12px 0 40px rgba(0,0,0,.25); max-width: 100vw; }
+}
+
+/* table */
+table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+thead th {
+  position: sticky; top: 0; z-index: 2; background: var(--bg); text-align: left;
+  font-weight: 600; font-size: 12px; color: var(--muted); padding: 7px 10px;
+  border-bottom: 1px solid var(--border); user-select: none; white-space: nowrap;
+}
+thead th[data-sort] { cursor: pointer; }
+thead th[data-sort]:hover { color: var(--text); }
+thead th .arrow { color: var(--accent); }
+tbody td { padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--surface-2); }
+tbody tr.active { background: var(--accent-soft); }
+tbody tr.selected td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+th.num { text-align: right; }
+col.c-ck { width: 36px; } col.c-pid { width: 72px; } col.c-ports { width: 120px; }
+col.c-proj { width: 150px; } col.c-origin { width: 130px; } col.c-cpu { width: 64px; }
+col.c-mem { width: 80px; } col.c-age { width: 76px; } col.c-act { width: 42px; }
+.name-wrap { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.branch { color: var(--faint); font-family: var(--mono); }
+.nm { font-weight: 600; }
+.sub {
+  font-family: var(--mono); font-size: 11.5px; color: var(--faint);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;
+}
+.ellip { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.badge {
+  font-size: 11px; line-height: 1; padding: 3px 6px; border-radius: 4px; font-weight: 600;
+  background: var(--surface-2); color: var(--muted); white-space: nowrap;
+}
+.badge.warn { background: var(--warn-soft); color: var(--warn); }
+.badge.ai { background: var(--ai-soft); color: var(--ai); }
+.badge.hot { background: var(--danger-soft); color: var(--danger); }
+.port {
+  display: inline-block; font-family: var(--mono); font-size: 11.5px; padding: 1px 5px; margin: 0 3px 3px 0;
+  border-radius: 4px; background: var(--ok-soft); color: var(--ok);
+}
+.origin { font-size: 12px; }
+.origin.k-ai { color: var(--ai); font-weight: 600; }
+.origin.k-editor { color: var(--accent); }
+.empty { padding: 48px 20px; text-align: center; color: var(--muted); }
+.notice { padding: 8px 16px; background: var(--warn-soft); color: var(--warn); font-size: 13px; }
+
+/* panel */
+.panel-head {
+  position: sticky; top: 0; z-index: 3; background: var(--surface);
+  display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px 10px; border-bottom: 1px solid var(--border);
+}
+.panel-head h2 { margin: 0; font-size: 17px; word-break: break-all; }
+.panel-head .dim { font-size: 12.5px; }
+.panel-head .icon { margin-left: auto; flex-shrink: 0; }
+.panel-body { padding: 4px 16px 24px; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 0 4px; }
+.panel section { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.panel section:last-child { border-bottom: 0; }
+.panel h3 {
+  margin: 0 0 8px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--faint);
+  display: flex; align-items: center; gap: 8px;
+}
+.panel h3 .btn { margin-left: auto; text-transform: none; letter-spacing: 0; }
+.kv { display: grid; grid-template-columns: 110px 1fr; gap: 4px 10px; margin: 0; font-size: 13px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; word-break: break-all; }
+pre.cmd {
+  margin: 0; padding: 8px 10px; background: var(--surface-2); border-radius: 6px;
+  white-space: pre-wrap; word-break: break-all; max-height: 160px; overflow: auto;
+}
+.callout { padding: 9px 11px; border-radius: 7px; font-size: 13px; margin-top: 10px; }
+.callout.warn { background: var(--warn-soft); color: var(--warn); }
+.callout.danger { background: var(--danger-soft); color: var(--danger); }
+.callout.info { background: var(--surface-2); color: var(--muted); }
+.callout.ok { background: var(--ok-soft); color: var(--ok); }
+.callout.ai { background: var(--ai-soft); color: var(--ai); }
+.callout b { font-weight: 650; }
+ol.chain { list-style: none; margin: 0; padding: 0; }
+ol.chain li { position: relative; padding: 2px 0 6px 18px; }
+ol.chain li::before {
+  content: ""; position: absolute; left: 4px; top: 9px; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--border);
+}
+ol.chain li::after {
+  content: ""; position: absolute; left: 7px; top: 18px; bottom: -2px; width: 1px; background: var(--border);
+}
+ol.chain li:last-child::after { display: none; }
+ol.chain li.here::before { background: var(--accent); }
+ol.chain li.origin-hit::before { background: var(--ai); }
+ol.chain .sub { max-width: 100%; }
+ul.plain { list-style: none; margin: 0; padding: 0; }
+ul.plain li { padding: 2px 0; }
+.stdio { display: grid; grid-template-columns: 56px 1fr; gap: 2px 10px; font-size: 13px; padding: 3px 0; }
+.stdio .fd { font-family: var(--mono); color: var(--muted); }
+pre.log {
+  margin: 8px 0 0; padding: 8px 10px; background: #0b0d10; color: #d6dae0; border-radius: 6px;
+  max-height: 320px; overflow: auto; font-size: 11.5px; white-space: pre-wrap; word-break: break-all;
+}
+.env-table { width: 100%; font-size: 12px; table-layout: fixed; }
+.env-table td { padding: 3px 6px 3px 0; border-bottom: 1px solid var(--border); vertical-align: top; word-break: break-all; }
+.env-table td:first-child { width: 38%; font-family: var(--mono); color: var(--muted); }
+.env-table td.secret { color: var(--warn); }
+.mini-input {
+  width: 100%; padding: 5px 8px; margin-bottom: 6px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--bg); color: var(--text); font: inherit; font-size: 12.5px;
+}
+.panel-loading, .panel-error { padding: 24px 16px; color: var(--muted); }
+
+/* modal */
+.backdrop {
+  position: fixed; inset: 0; z-index: 50; background: rgba(8, 10, 14, 0.55);
+  display: grid; place-items: center; padding: 16px;
+}
+.backdrop[hidden] { display: none; }
+.modal {
+  width: min(580px, 100%); max-height: calc(100vh - 32px); overflow: auto;
+  background: var(--surface); border-radius: 12px; border: 1px solid var(--border);
+  box-shadow: 0 24px 70px rgba(0,0,0,.35); padding: 20px 22px;
+}
+.modal h2 { margin: 0 0 4px; font-size: 18px; }
+.modal .targets { margin: 14px 0 4px; border: 1px solid var(--border); border-radius: 8px; max-height: 210px; overflow: auto; }
+.modal .targets div { display: flex; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 13px; align-items: baseline; }
+.modal .targets div:last-child { border-bottom: 0; }
+.modal .targets .t-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.modal .targets .t-meta { margin-left: auto; color: var(--faint); font-size: 12px; white-space: nowrap; }
+.modal .warnings { margin-top: 10px; }
+.modal .warnings .callout { margin-top: 6px; }
+.ack { display: flex; gap: 8px; align-items: center; margin-top: 14px; font-size: 13px; cursor: pointer; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+/* toasts */
+.toasts { position: fixed; right: 16px; bottom: 16px; z-index: 60; display: flex; flex-direction: column; gap: 8px; max-width: 420px; }
+.toast {
+  display: flex; align-items: center; gap: 10px; padding: 10px 8px 10px 14px; border-radius: 9px;
+  background: var(--surface); border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,.2); font-size: 13px;
+  border-left: 4px solid var(--faint);
+}
+.toast span { flex: 1; }
+.toast.ok { border-left-color: var(--ok); }
+.toast.warn { border-left-color: var(--warn); }
+.toast.danger { border-left-color: var(--danger); }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><b>ProcDeck</b><span class="dim" id="hostinfo"></span></div>
+  <div class="search"><input id="q" type="search" placeholder="Filter by name, path, PID or :port   ( / )" autocomplete="off" spellcheck="false"></div>
+  <div class="controls">
+    <label title="Nest child processes under their parents"><input type="checkbox" id="opt-tree"> Tree</label>
+    <label title="Refresh every 3 seconds"><input type="checkbox" id="opt-auto"> Auto-refresh</label>
+    <button class="btn small" id="refresh" title="Refresh now (r)">Refresh</button>
+    <span id="status">Loading…</span>
+  </div>
+</header>
+<nav class="filters" id="filters"></nav>
+<div class="bulk" id="bulk" hidden>
+  <strong id="bulk-count"></strong>
+  <button class="btn small" id="bulk-stop">Stop</button>
+  <button class="btn small" id="bulk-tree">Stop with children</button>
+  <button class="btn small danger-outline" id="bulk-kill">Force kill</button>
+  <button class="btn small" id="bulk-clear" style="margin-left:auto">Clear selection</button>
+</div>
+<main class="layout">
+  <section class="list">
+    <div id="notice"></div>
+    <table>
+      <colgroup>
+        <col class="c-ck"><col><col class="c-pid"><col class="c-ports"><col class="c-proj">
+        <col class="c-origin"><col class="c-cpu"><col class="c-mem"><col class="c-age"><col class="c-act">
+      </colgroup>
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="check-all" title="Select all visible"></th>
+          <th data-sort="name">Process</th>
+          <th data-sort="pid" class="num">PID</th>
+          <th data-sort="ports">Ports</th>
+          <th data-sort="project">Folder</th>
+          <th data-sort="origin">Started from</th>
+          <th data-sort="cpu" class="num">CPU</th>
+          <th data-sort="mem" class="num">Memory</th>
+          <th data-sort="age" class="num">Running</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="empty" id="empty" hidden></div>
+  </section>
+  <aside class="panel" id="panel" hidden></aside>
+</main>
+<div class="backdrop" id="modal" hidden><div class="modal" id="modal-box" role="dialog" aria-modal="true"></div></div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+'use strict';
+const TOKEN = '__PROCDECK_TOKEN__';
+const REFRESH_MS = 3000;
+
+const $ = (sel, el = document) => el.querySelector(sel);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const plural = (n, word, many = word + 's') => `${n} ${n === 1 ? word : many}`;
+
+const prefs = (() => { try { return JSON.parse(localStorage.getItem('procdeck') || '{}'); } catch { return {}; } })();
+const savePrefs = () => {
+  try { localStorage.setItem('procdeck', JSON.stringify({ filter: state.filter, tree: state.tree, auto: state.auto, sort: state.sort })); } catch {}
+};
+
+const state = {
+  data: null,
+  filter: prefs.filter || 'dev',
+  q: '',
+  sort: prefs.sort || { key: 'cpu', dir: -1 },
+  tree: prefs.tree ?? true,
+  auto: prefs.auto ?? true,
+  selected: new Set(),
+  active: null,
+  detail: null,
+  detailGone: false,
+  modalOpen: false,
+  loading: false,
+};
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    ...opts,
+    headers: { 'x-procdeck-token': TOKEN, 'content-type': 'application/json', ...(opts.headers || {}) },
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || res.statusText);
+  return body;
+}
+const post = (path, body) => api(path, { method: 'POST', body: JSON.stringify(body) });
+
+// ------------------------------------------------------------ formatting
+
+function fmtAge(sec) {
+  if (sec < 60) return `${sec}s`;
+  if (sec < 3600) return `${Math.floor(sec / 60)}m`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
+  return `${Math.floor(sec / 86400)}d ${Math.floor((sec % 86400) / 3600)}h`;
+}
+function fmtMem(kb) {
+  if (kb < 1024) return `${kb} KB`;
+  if (kb < 1024 * 1024) return `${Math.round(kb / 1024)} MB`;
+  return `${(kb / 1024 / 1024).toFixed(1)} GB`;
+}
+function fmtBytes(b) { return b < 1024 ? `${b} B` : fmtMem(Math.round(b / 1024)); }
+const tilde = (s) => (s && state.data?.home ? String(s).split(state.data.home).join('~') : s || '');
+const baseName = (p) => (p ? p.replace(/\/+$/, '').split('/').pop() || '/' : '');
+const uniquePorts = (p) => [...new Set(p.ports.map((x) => x.port))].sort((a, b) => a - b);
+
+const STATE_LABELS = {
+  R: 'Running', S: 'Sleeping (waiting for work)', I: 'Idle', D: 'Waiting on disk',
+  T: 'Stopped (paused)', t: 'Paused by a debugger', Z: 'Zombie (exited, waiting for its parent)', U: 'Uninterruptible wait',
+};
+
+// --------------------------------------------------------------- filters
+
+const FILTERS = [
+  { id: 'dev', label: 'Dev processes', test: (p) => p.isDev },
+  { id: 'ports', label: 'Listening on ports', test: (p) => p.ports.length > 0 },
+  { id: 'orphans', label: 'Orphaned', test: (p) => p.orphan },
+  { id: 'ai', label: 'From AI sessions', test: (p) => p.isAgent || p.origin?.kind === 'ai' },
+  { id: 'mine', label: 'All of mine', test: (p) => p.mine },
+  { id: 'all', label: 'Everything', test: () => true },
+];
+
+function matches(p, raw) {
+  const q = raw.trim().toLowerCase();
+  if (!q) return true;
+  if (/^:\d+$/.test(q)) return p.ports.some((x) => `:${x.port}` === q);
+  if (/^\d+$/.test(q) && String(p.pid) === q) return true;
+  return `${p.name} ${p.args} ${p.cwd || ''} ${p.pid} ${p.origin?.label || ''}`.toLowerCase().includes(q);
+}
+
+const SORTERS = {
+  name: (p) => p.name.toLowerCase(),
+  pid: (p) => p.pid,
+  ports: (p) => uniquePorts(p)[0] ?? 1e9,
+  project: (p) => (p.cwd ? baseName(p.cwd).toLowerCase() : '￿'),
+  origin: (p) => p.origin?.label || '￿',
+  cpu: (p) => p.cpu,
+  mem: (p) => p.rssKb,
+  age: (p) => p.ageSec,
+};
+
+function sortList(list) {
+  const { key, dir } = state.sort;
+  const f = SORTERS[key] || SORTERS.cpu;
+  list.sort((a, b) => {
+    const x = f(a), y = f(b);
+    return (x < y ? -1 : x > y ? 1 : 0) * dir || a.pid - b.pid;
+  });
+  return list;
+}
+
+// With tree view on, a process nests under its parent only if the parent is also
+// in the filtered list; otherwise it shows as a root.
+function treeOrder(list) {
+  const inSet = new Set(list.map((p) => p.pid));
+  const kids = new Map();
+  const roots = [];
+  for (const p of list) {
+    if (inSet.has(p.ppid) && p.ppid !== p.pid) {
+      if (!kids.has(p.ppid)) kids.set(p.ppid, []);
+      kids.get(p.ppid).push(p);
+    } else roots.push(p);
+  }
+  const out = [];
+  const walk = (p, depth) => {
+    out.push({ p, depth });
+    for (const c of kids.get(p.pid) || []) walk(c, depth + 1);
+  };
+  roots.forEach((r) => walk(r, 0));
+  return out;
+}
+
+function visibleRows() {
+  if (!state.data) return [];
+  const f = FILTERS.find((x) => x.id === state.filter) || FILTERS[0];
+  const list = sortList(state.data.processes.filter((p) => f.test(p) && matches(p, state.q)));
+  return state.tree ? treeOrder(list) : list.map((p) => ({ p, depth: 0 }));
+}
+
+// ---------------------------------------------------------------- render
+
+function render() {
+  if (!state.data) return;
+  renderHeader();
+  renderFilters();
+  renderTable();
+  renderBulk();
+  renderLive();
+}
+
+function renderHeader() {
+  const d = state.data;
+  $('#hostinfo').textContent = `${d.user}@${d.hostname} · ${d.platform === 'darwin' ? 'macOS' : 'Linux'} · ProcDeck PID ${d.selfPid}`;
+  $('#notice').innerHTML = d.portTool
+    ? ''
+    : '<div class="notice">Neither lsof nor ss was found, so listening ports can\'t be shown. On Debian/Ubuntu/Mint: <code>sudo apt install lsof</code></div>';
+}
+
+function renderFilters() {
+  const procs = state.data.processes;
+  const chips = FILTERS.map((f) => {
+    const n = procs.filter(f.test).length;
+    return `<button class="chip ${state.filter === f.id ? 'active' : ''}" data-filter="${f.id}">${esc(f.label)}<span class="count">${n}</span></button>`;
+  }).join('');
+  const orphans = procs.filter((p) => p.orphan && p.mine);
+  const cleanup = orphans.length
+    ? `<button class="btn warn small" id="cleanup" title="Stop every orphaned dev process you own, including its children">Clean up ${plural(orphans.length, 'orphan')}</button>`
+    : '';
+  $('#filters').innerHTML = chips + '<span class="spacer"></span>' + cleanup;
+}
+
+function rowHtml({ p, depth }) {
+  const badges = [];
+  if (p.orphan) badges.push('<span class="badge warn" title="Its parent has exited, so nothing will stop it automatically">orphaned</span>');
+  if (p.isAgent) badges.push('<span class="badge ai">AI agent</span>');
+  if (p.stat.startsWith('Z')) badges.push('<span class="badge">zombie</span>');
+  if (p.stat.startsWith('T')) badges.push('<span class="badge warn">paused</span>');
+  if (p.cpu >= 50) badges.push(`<span class="badge hot">${Math.round(p.cpu)}% CPU</span>`);
+  if (!p.mine) badges.push(`<span class="badge" title="Owned by another user">${esc(p.user)}</span>`);
+  const ports = uniquePorts(p).map((port) => `<span class="port">:${port}</span>`).join('');
+  const origin = p.origin
+    ? `<span class="origin k-${p.origin.kind}" title="${p.origin.via === 'environment' ? 'From its environment variables' : 'From its parent chain'}">${esc(p.origin.label)}</span>`
+    : '<span class="faint">–</span>';
+  const folder = p.cwd ? `<span class="ellip" title="${esc(p.cwd)}">${esc(baseName(p.cwd))}</span>` : '<span class="faint">–</span>';
+  const cls = [state.active === p.pid ? 'active' : '', state.selected.has(p.pid) ? 'selected' : ''].join(' ');
+  return `<tr data-pid="${p.pid}" class="${cls}">
+    <td><input type="checkbox" data-check ${state.selected.has(p.pid) ? 'checked' : ''} aria-label="Select PID ${p.pid}"></td>
+    <td><div class="name-wrap" style="padding-left:${Math.min(depth, 8) * 16}px">${depth ? '<span class="branch">└</span>' : ''}<span class="nm">${esc(p.name)}</span>${badges.join('')}</div>
+        <div class="sub" style="padding-left:${Math.min(depth, 8) * 16}px" title="${esc(p.args)}">${esc(tilde(p.args))}</div></td>
+    <td class="num">${p.pid}</td>
+    <td>${ports || '<span class="faint">–</span>'}</td>
+    <td>${folder}</td>
+    <td>${origin}</td>
+    <td class="num">${p.cpu.toFixed(1)}%</td>
+    <td class="num">${fmtMem(p.rssKb)}</td>
+    <td class="num">${fmtAge(p.ageSec)}</td>
+    <td><button class="icon stop" data-stop title="Stop PID ${p.pid}" aria-label="Stop PID ${p.pid}">
+      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="1" width="10" height="10" rx="2" fill="currentColor"/></svg></button></td>
+  </tr>`;
+}
+
+function renderTable() {
+  const rows = visibleRows();
+  $('#rows').innerHTML = rows.map(rowHtml).join('');
+  const empty = $('#empty');
+  empty.hidden = rows.length > 0;
+  if (!rows.length) {
+    empty.textContent = state.q
+      ? 'Nothing matches that filter.'
+      : state.filter === 'orphans'
+        ? 'No orphaned dev processes. Nothing has been left behind.'
+        : state.filter === 'ai'
+          ? 'No processes from AI sessions are running.'
+          : 'Nothing to show.';
+  }
+  document.querySelectorAll('thead th[data-sort]').forEach((th) => {
+    const key = th.dataset.sort;
+    th.querySelector('.arrow')?.remove();
+    if (key === state.sort.key) th.insertAdjacentHTML('beforeend', `<span class="arrow"> ${state.sort.dir < 0 ? '↓' : '↑'}</span>`);
+  });
+  const allSel = rows.length > 0 && rows.every(({ p }) => state.selected.has(p.pid));
+  $('#check-all').checked = allSel;
+}
+
+function renderBulk() {
+  const n = state.selected.size;
+  $('#bulk').hidden = n === 0;
+  $('#bulk-count').textContent = `${n} selected`;
+}
+
+// ---------------------------------------------------------------- panel
+
+async function openPanel(pid, { keepScroll = false } = {}) {
+  const panel = $('#panel');
+  const scroll = panel.scrollTop;
+  state.active = pid;
+  state.detailGone = false;
+  panel.hidden = false;
+  if (!keepScroll) panel.innerHTML = '<div class="panel-loading">Loading…</div>';
+  renderTable();
+  try {
+    const d = await api(`/api/process?pid=${pid}`);
+    if (state.active !== pid) return;
+    state.detail = d;
+    renderPanel();
+    if (keepScroll) panel.scrollTop = scroll;
+  } catch (e) {
+    if (state.active === pid) panel.innerHTML = panelError(e.message);
+  }
+}
+
+function closePanel() {
+  state.active = null;
+  state.detail = null;
+  $('#panel').hidden = true;
+  renderTable();
+}
+
+const panelError = (msg) =>
+  `<div class="panel-head"><h2>Process</h2><button class="icon" data-close aria-label="Close">×</button></div><div class="panel-error">${esc(msg)}</div>`;
+
+const KIND_TEXT = {
+  terminal: 'a terminal',
+  pipe: 'a pipe, read by its parent (an agent or script capturing output)',
+  file: 'a file',
+  discarded: 'nowhere (/dev/null)',
+  socket: 'a socket',
+  deleted: 'a file that has since been deleted',
+  other: 'something else',
+  unknown: "unknown (can't read it)",
+};
+
+function originSentence(d) {
+  const p = d.process;
+  if (!p.origin) {
+    if (p.orphan) return 'Its parent has exited, and nothing in its environment says where it came from.';
+    return 'No editor, terminal or AI agent appears in its parent chain.';
+  }
+  if (p.origin.via === 'environment') {
+    return `Its environment variables show it was started from <b>${esc(p.origin.label)}</b>.${p.orphan ? ' The process that launched it has since exited.' : ''}`;
+  }
+  return `Started from <b>${esc(p.origin.label)}</b> (PID ${p.origin.pid}).`;
+}
+
+function renderPanel() {
+  const d = state.detail;
+  if (!d) return;
+  const p = d.process;
+  const started = new Date(d.startedAt);
+  const startedText = started.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+
+  const callouts = [];
+  if (state.detailGone) callouts.push('<div class="callout ok"><b>This process has exited.</b></div>');
+  if (d.isSelf) callouts.push('<div class="callout info">This is ProcDeck itself. Stop it with Ctrl+C in its terminal.</div>');
+  if (d.isSelfAncestor) callouts.push('<div class="callout danger"><b>ProcDeck runs inside this process.</b> Stopping it will close ProcDeck too.</div>');
+  if (p.orphan) callouts.push('<div class="callout warn"><b>Orphaned.</b> The process that started it has exited, so closing your editor or agent won\'t stop it. Leftover dev servers and watchers look like this. Daemons such as pm2 or brew services are detached on purpose, so check before stopping those.</div>');
+  if (p.isAgent) callouts.push('<div class="callout ai"><b>AI agent session.</b> Stopping it interrupts whatever it is doing. Its child processes (dev servers, test runners) may keep running unless you stop the whole tree.</div>');
+  if (p.stat.startsWith('Z')) callouts.push('<div class="callout info"><b>Zombie.</b> It has already exited and is only waiting for its parent to collect it. Signals do nothing; stopping the parent clears it.</div>');
+  if (!p.mine) callouts.push(`<div class="callout info">Owned by <b>${esc(p.user)}</b>. You'll get "permission denied" if you try to stop it from here.</div>`);
+
+  const disabled = state.detailGone || d.isSelf ? 'disabled' : '';
+  const ports = p.ports.length
+    ? `<ul class="plain">${p.ports.map((x) => {
+        const local = /^(127\.|\[::1\]|localhost)/.test(x.host);
+        const all = ['*', '0.0.0.0', '[::]'].includes(x.host);
+        const note = local ? 'this machine only' : all ? 'all interfaces, reachable from your network' : '';
+        return `<li><a class="link mono" href="http://localhost:${x.port}" target="_blank" rel="noopener">${esc(x.host)}:${x.port}</a> <span class="dim">${note}</span></li>`;
+      }).join('')}</ul>`
+    : '<span class="dim">Not listening on any TCP port.</span>';
+
+  const originPid = p.origin?.pid;
+  const chain = [...d.ancestry, { pid: p.pid, name: p.name, args: p.args, here: true }]
+    .map((a) => `<li class="${a.here ? 'here' : ''} ${a.pid === originPid ? 'origin-hit' : ''}">
+        ${a.here ? `<b>${esc(a.name)}</b>` : `<button class="link" data-goto="${a.pid}">${esc(a.name)}</button>`}
+        <span class="faint">PID ${a.pid}${a.here ? ' · this process' : ''}${a.pid === originPid ? ` · ${esc(p.origin.label)}` : ''}</span>
+        <div class="sub" title="${esc(a.args)}">${esc(tilde(a.args))}</div></li>`)
+    .join('');
+
+  const kids = d.children.length
+    ? `<ul class="plain">${d.children.slice(0, 40).map((c) => `<li><button class="link" data-goto="${c.pid}">${esc(c.name)}</button> <span class="faint">PID ${c.pid}</span></li>`).join('')}</ul>${d.children.length > 40 ? `<div class="dim">…and ${d.children.length - 40} more</div>` : ''}`
+    : '<span class="dim">None.</span>';
+
+  const stdio = d.stdio
+    .map((s) => `<div class="stdio"><span class="fd">${s.label}</span><span>goes to ${esc(KIND_TEXT[s.kind] || s.kind)}${s.target && s.kind !== 'unknown' ? ` <code class="faint">${esc(tilde(s.target))}</code>` : ''}${s.kind === 'file' ? ` <span class="faint">(${fmtBytes(s.size)})</span>` : ''}
+        ${s.kind === 'file' && s.fd > 0 ? ` <button class="btn small" data-tail="${s.fd}">Show last lines</button>` : ''}</span></div>`)
+    .join('');
+  const noReadable = !d.stdio.some((s) => s.kind === 'file' && s.fd > 0);
+
+  $('#panel').innerHTML = `
+    <div class="panel-head">
+      <div><h2>${esc(p.name)}</h2>
+        <div class="dim">PID ${p.pid} · ${esc(p.user)} · started ${esc(startedText)}</div></div>
+      <button class="icon" data-close aria-label="Close panel" title="Close (Esc)">×</button>
+    </div>
+    <div class="panel-body">
+      ${callouts.join('')}
+      <div class="actions">
+        <button class="btn primary" data-act="term" ${disabled} title="Send SIGTERM: ask it to shut down cleanly">Stop</button>
+        <button class="btn" data-act="tree" ${disabled || (d.descendantCount ? '' : 'disabled')} title="SIGTERM this process and everything it started">Stop with ${d.descendantCount ? plural(d.descendantCount, 'child', 'children') : 'children'}</button>
+        <button class="btn danger-outline" data-act="kill" ${disabled} title="Send SIGKILL: end it immediately">Force kill</button>
+        <button class="btn" data-act="open" ${d.cwd ? '' : 'disabled'} title="Open the working folder in your file manager">Open folder</button>
+        <button class="btn" data-act="copy" title="Copy the full command line">Copy command</button>
+      </div>
+
+      <section><h3>Overview</h3>
+        <dl class="kv" id="live-stats"></dl>
+      </section>
+
+      <section><h3>Command</h3><pre class="cmd">${esc(p.args)}</pre></section>
+
+      <section><h3>Folder</h3>
+        ${d.cwd ? `<code>${esc(tilde(d.cwd))}</code>` : '<span class="dim">Unknown (another user\'s process, or not readable).</span>'}
+        ${d.exePath ? `<div class="dim" style="margin-top:6px;font-size:12.5px">Executable: <code>${esc(tilde(d.exePath))}</code></div>` : ''}
+      </section>
+
+      <section><h3>Listening on</h3>${ports}</section>
+
+      <section><h3>Where it came from</h3>
+        <p style="margin:0 0 10px">${originSentence(d)}</p>
+        <ol class="chain">${chain}</ol>
+      </section>
+
+      <section><h3>Child processes</h3>${kids}</section>
+
+      <section><h3>Output</h3>
+        ${stdio}
+        ${noReadable ? '<div class="dim" style="font-size:12.5px;margin-top:6px">ProcDeck can only read output that goes to a file. Output sent to a terminal or a pipe can\'t be recovered after the fact.</div>' : ''}
+        <pre class="log" id="tail-out" hidden></pre>
+      </section>
+
+      <section><h3>Environment <button class="btn small" data-load-env>Load</button></h3>
+        <div id="env-out"><span class="dim">Environment variables it was started with. Values that look like secrets stay masked.</span></div>
+      </section>
+
+      <section><h3>Open files <button class="btn small" data-load-files>Load</button></h3>
+        <div id="files-out"><span class="dim">Files, sockets and pipes it has open right now.</span></div>
+      </section>
+    </div>`;
+  renderLive();
+}
+
+// The overview block follows the list refresh so CPU and memory stay current.
+function renderLive() {
+  const el = $('#live-stats');
+  if (!el || !state.detail || !state.data) return;
+  const p = state.data.processes.find((x) => x.pid === state.detail.process.pid) || state.detail.process;
+  el.innerHTML = `
+    <dt>State</dt><dd>${esc(STATE_LABELS[p.stat[0]] || p.stat)}</dd>
+    <dt>CPU</dt><dd>${p.cpu.toFixed(1)}%</dd>
+    <dt>Memory</dt><dd>${fmtMem(p.rssKb)} (${p.mem.toFixed(1)}% of RAM)</dd>
+    <dt>Running for</dt><dd>${fmtAge(p.ageSec)}</dd>
+    <dt>Parent</dt><dd>${p.ppid > 0 ? `<button class="link" data-goto="${p.ppid}">PID ${p.ppid}</button>` : '–'}</dd>
+    <dt>Children</dt><dd>${p.childCount} direct${state.detail.descendantCount > p.childCount ? `, ${state.detail.descendantCount} in total` : ''}</dd>`;
+}
+
+function markPanelGone() {
+  if (state.detailGone || !state.detail) return;
+  state.detailGone = true;
+  renderPanel();
+}
+
+async function loadEnv(reveal = false) {
+  const out = $('#env-out');
+  out.innerHTML = '<span class="dim">Loading…</span>';
+  try {
+    const { vars } = await api(`/api/env?pid=${state.active}${reveal ? '&reveal=1' : ''}`);
+    const secrets = vars.filter((v) => v.secret).length;
+    out.innerHTML = `
+      <input class="mini-input" id="env-filter" placeholder="Filter ${vars.length} variables" autocomplete="off" spellcheck="false">
+      ${secrets ? `<div style="margin-bottom:6px"><button class="btn small" data-reveal="${reveal ? 0 : 1}">${reveal ? 'Mask secrets' : `Show ${plural(secrets, 'masked value')}`}</button></div>` : ''}
+      <table class="env-table"><tbody>${vars.map((v) => `<tr data-key="${esc(v.key.toLowerCase())}"><td>${esc(v.key)}</td><td class="${v.secret ? 'secret' : ''}">${esc(v.value)}</td></tr>`).join('')}</tbody></table>`;
+  } catch (e) {
+    out.innerHTML = `<span class="dim">${esc(e.message)}</span>`;
+  }
+}
+
+async function loadFiles() {
+  const out = $('#files-out');
+  out.innerHTML = '<span class="dim">Loading…</span>';
+  try {
+    const { total, files } = await api(`/api/files?pid=${state.active}`);
+    const counts = {};
+    for (const f of files) counts[f.type || '?'] = (counts[f.type || '?'] || 0) + 1;
+    const summary = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([t, n]) => `${n} ${esc(t)}`).join(', ');
+    out.innerHTML = `<div class="dim" style="margin-bottom:6px">${total} open: ${summary}${total > files.length ? ` (showing first ${files.length})` : ''}</div>
+      <table class="env-table"><tbody>${files.map((f) => `<tr><td>${esc(f.fd)} <span class="faint">${esc(f.type)}</span></td><td>${esc(tilde(f.name))}</td></tr>`).join('')}</tbody></table>`;
+  } catch (e) {
+    out.innerHTML = `<span class="dim">${esc(e.message)}</span>`;
+  }
+}
+
+async function loadTail(fd) {
+  const out = $('#tail-out');
+  out.hidden = false;
+  out.textContent = 'Loading…';
+  try {
+    const t = await api(`/api/tail?pid=${state.active}&fd=${fd}`);
+    out.textContent = t.lines.join('\n') || '(empty)';
+    out.scrollTop = out.scrollHeight;
+  } catch (e) {
+    out.textContent = e.message;
+  }
+}
+
+// --------------------------------------------------------- kill + dialogs
+
+function childIndex() {
+  const idx = new Map();
+  for (const p of state.data.processes) {
+    if (!idx.has(p.ppid)) idx.set(p.ppid, []);
+    idx.get(p.ppid).push(p);
+  }
+  return idx;
+}
+
+function buildPlan(pids, { signal, tree }) {
+  const byPid = new Map(state.data.processes.map((p) => [p.pid, p]));
+  const targets = pids.map((pid) => byPid.get(pid)).filter(Boolean);
+  const affected = new Map();
+  const kids = childIndex();
+  for (const t of targets) {
+    affected.set(t.pid, { p: t, child: false });
+    if (tree) {
+      const queue = [...(kids.get(t.pid) || [])];
+      while (queue.length) {
+        const c = queue.shift();
+        if (affected.has(c.pid)) continue;
+        affected.set(c.pid, { p: c, child: true });
+        queue.push(...(kids.get(c.pid) || []));
+      }
+    }
+  }
+  const all = [...affected.values()].map((a) => a.p);
+  const selfAnc = new Set(state.data.selfAncestors);
+  const warnings = [];
+
+  if (all.some((p) => selfAnc.has(p.pid))) {
+    warnings.push({ level: 'danger', text: '<b>This includes the shell or terminal running ProcDeck.</b> Stopping it closes ProcDeck as well.' });
+  }
+  if (targets.some((p) => p.pid === state.data.selfPid)) {
+    warnings.push({ level: 'info', text: 'ProcDeck itself is skipped. Stop it with Ctrl+C in its terminal.' });
+  }
+  const nonDev = all.filter((p) => !p.isDev);
+  if (nonDev.length) {
+    warnings.push({
+      level: 'danger',
+      text: `<b>${plural(nonDev.length, 'process isn\'t', 'processes aren\'t')} a recognised dev tool</b> (${nonDev.slice(0, 3).map((p) => esc(p.name)).join(', ')}${nonDev.length > 3 ? ', …' : ''}). ${nonDev.length === 1 ? 'It' : 'They'} may belong to your desktop session or another app. Make sure you know what ${nonDev.length === 1 ? 'it is' : 'they are'}.`,
+    });
+  }
+  const notMine = all.filter((p) => !p.mine);
+  if (notMine.length) {
+    warnings.push({ level: 'warn', text: `${plural(notMine.length, 'process is', 'processes are')} owned by another user (${[...new Set(notMine.map((p) => esc(p.user)))].join(', ')}). The signal will most likely be refused.` });
+  }
+  const agents = all.filter((p) => p.isAgent);
+  if (agents.length) {
+    warnings.push({ level: 'warn', text: `Includes ${plural(agents.length, 'running AI agent session')}. Anything ${agents.length === 1 ? 'it is' : 'they are'} doing will be interrupted.` });
+  }
+  if (!tree) {
+    const childCount = targets.reduce((n, t) => n + t.childCount, 0);
+    if (childCount) {
+      warnings.push({ level: 'info', text: `${plural(childCount, 'child process', 'child processes')} won't be signalled and may keep running as orphans. Use "Stop with children" to include them.` });
+    }
+  }
+  if (signal === 'SIGKILL') {
+    warnings.push({ level: 'warn', text: '<b>Force kill (SIGKILL)</b> ends the process immediately. It gets no chance to save state, close connections, delete lock files or stop its own children.' });
+  } else {
+    warnings.push({ level: 'info', text: 'Sends SIGTERM, the polite "please exit" signal. Dev servers normally shut down within a second. You can force kill anything that ignores it.' });
+  }
+  const ports = [...new Set(all.flatMap((p) => uniquePorts(p)))];
+  if (ports.length) warnings.push({ level: 'info', text: `Frees port${ports.length > 1 ? 's' : ''} ${ports.map((x) => `:${x}`).join(', ')}.` });
+  if (all.length > 10) warnings.push({ level: 'warn', text: `This signals <b>${all.length} processes</b>.` });
+
+  const verb = signal === 'SIGKILL' ? 'Force kill' : 'Stop';
+  const first = targets[0];
+  const extra = all.length - targets.length;
+  const title = targets.length === 1
+    ? `${verb} ${esc(first.name)}${extra ? ` and ${plural(extra, 'child process', 'child processes')}` : ''}?`
+    : `${verb} ${all.length} processes?`;
+
+  return {
+    targets,
+    affected: [...affected.values()],
+    warnings,
+    needsAck: warnings.some((w) => w.level === 'danger'),
+    touchesSelfAncestor: all.some((p) => selfAnc.has(p.pid)),
+    signal,
+    tree,
+    title,
+    confirmLabel: signal === 'SIGKILL' ? 'Force kill' : extra || targets.length > 1 ? 'Stop all' : 'Stop',
+  };
+}
+
+function showConfirm(plan) {
+  return new Promise((resolve) => {
+    const modal = $('#modal');
+    const box = $('#modal-box');
+    const list = plan.affected.slice(0, 40).map(({ p, child }) => `
+      <div><span class="t-name">${child ? '<span class="faint">└ </span>' : ''}${esc(p.name)}</span>
+        <span class="t-meta">PID ${p.pid}${p.cwd ? ` · ${esc(baseName(p.cwd))}` : ''}${p.ports.length ? ` · ${uniquePorts(p).map((x) => ':' + x).join(' ')}` : ''}</span></div>`).join('');
+    box.innerHTML = `
+      <h2>${plan.title}</h2>
+      <div class="dim">Signal: ${plan.signal}${plan.tree ? ' · includes child processes' : ''}</div>
+      <div class="targets">${list}${plan.affected.length > 40 ? `<div class="dim">…and ${plan.affected.length - 40} more</div>` : ''}</div>
+      <div class="warnings">${plan.warnings.map((w) => `<div class="callout ${w.level}">${w.text}</div>`).join('')}</div>
+      ${plan.needsAck ? '<label class="ack"><input type="checkbox" id="ack"> I\'ve checked the warnings above. Go ahead.</label>' : ''}
+      <div class="modal-actions">
+        <button class="btn" id="m-cancel">Cancel</button>
+        <button class="btn ${plan.signal === 'SIGKILL' || plan.needsAck ? 'danger' : 'primary'}" id="m-ok" ${plan.needsAck ? 'disabled' : ''}>${plan.confirmLabel}</button>
+      </div>`;
+    modal.hidden = false;
+    state.modalOpen = true;
+
+    const ok = $('#m-ok');
+    const close = (result) => {
+      modal.hidden = true;
+      state.modalOpen = false;
+      document.removeEventListener('keydown', onKey, true);
+      resolve(result);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(false); }
+    };
+    document.addEventListener('keydown', onKey, true);
+    $('#m-cancel').onclick = () => close(false);
+    ok.onclick = () => close(true);
+    modal.onclick = (e) => { if (e.target === modal) close(false); };
+    const ack = $('#ack');
+    if (ack) ack.onchange = () => { ok.disabled = !ack.checked; };
+    // Risky actions start focused on Cancel so a stray Enter does nothing harmful.
+    (plan.needsAck || plan.signal === 'SIGKILL' ? $('#m-cancel') : ok).focus();
+  });
+}
+
+async function confirmAndKill(pids, { signal = 'SIGTERM', tree = false } = {}) {
+  if (!state.data || state.modalOpen) return;
+  const plan = buildPlan(pids, { signal, tree });
+  if (!plan.targets.length) return toast('Those processes have already exited.', { level: 'ok' });
+  if (!(await showConfirm(plan))) return;
+  await runKill(plan);
+}
+
+async function runKill(plan) {
+  setStatus(plan.signal === 'SIGKILL' ? 'Killing…' : 'Stopping…');
+  try {
+    const res = await post('/api/kill', {
+      targets: plan.targets.map((t) => ({ pid: t.pid, args: t.args })),
+      signal: plan.signal,
+      tree: plan.tree,
+      allowAncestors: plan.touchesSelfAncestor,
+    });
+    report(res);
+    for (const t of plan.targets) state.selected.delete(t.pid);
+  } catch (e) {
+    toast(`Couldn't send the signal: ${e.message}`, { level: 'danger' });
+  }
+  await refresh();
+  if (state.active && !state.detailGone) openPanel(state.active, { keepScroll: true });
+}
+
+function report(res) {
+  const ended = res.signalled - res.survived.length;
+  if (ended > 0) toast(`${res.signal === 'SIGKILL' ? 'Killed' : 'Stopped'} ${plural(ended, 'process', 'processes')}.`, { level: 'ok' });
+  if (res.survived.length) {
+    const pids = res.survived.map((x) => x.pid);
+    toast(`${plural(res.survived.length, 'process', 'processes')} ignored ${res.signal} and ${res.survived.length === 1 ? 'is' : 'are'} still running (${res.survived.slice(0, 3).map((x) => x.name).join(', ')}).`, {
+      level: 'warn',
+      timeout: 20000,
+      action: res.signal === 'SIGKILL' ? null : { label: 'Force kill', fn: () => confirmAndKill(pids, { signal: 'SIGKILL' }) },
+    });
+  }
+  const problems = [...res.errors.map((e) => `PID ${e.pid}${e.name ? ` (${e.name})` : ''}: ${e.error}`), ...res.skipped.map((s) => `PID ${s.pid} skipped: ${s.reason}`)];
+  if (problems.length > 3) toast(`${problems.length} processes couldn't be signalled. First: ${problems[0]}`, { level: 'danger', timeout: 12000 });
+  else problems.forEach((msg) => toast(msg, { level: 'danger', timeout: 12000 }));
+  if (!res.signalled && !problems.length) toast('Nothing was signalled.');
+}
+
+// ---------------------------------------------------------------- toasts
+
+function toast(msg, { level = 'info', action = null, timeout = 5000 } = {}) {
+  const el = document.createElement('div');
+  el.className = `toast ${level}`;
+  const span = document.createElement('span');
+  span.textContent = msg;
+  el.append(span);
+  if (action) {
+    const b = document.createElement('button');
+    b.className = 'btn small';
+    b.textContent = action.label;
+    b.onclick = () => { el.remove(); action.fn(); };
+    el.append(b);
+  }
+  const x = document.createElement('button');
+  x.className = 'icon';
+  x.textContent = '×';
+  x.setAttribute('aria-label', 'Dismiss');
+  x.onclick = () => el.remove();
+  el.append(x);
+  $('#toasts').append(el);
+  setTimeout(() => el.remove(), timeout);
+}
+
+// --------------------------------------------------------------- refresh
+
+function setStatus(text, bad = false) {
+  const el = $('#status');
+  el.textContent = text;
+  el.classList.toggle('bad', bad);
+}
+
+async function refresh() {
+  if (state.loading) return;
+  state.loading = true;
+  try {
+    state.data = await api('/api/processes');
+    const alive = new Set(state.data.processes.map((p) => p.pid));
+    for (const pid of state.selected) if (!alive.has(pid)) state.selected.delete(pid);
+    if (state.active && !alive.has(state.active)) markPanelGone();
+    render();
+    setStatus(`Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`);
+  } catch (e) {
+    setStatus(/fetch/i.test(e.message) ? 'ProcDeck server stopped' : e.message, true);
+  } finally {
+    state.loading = false;
+  }
+}
+
+// ---------------------------------------------------------------- events
+
+$('#filters').addEventListener('click', (e) => {
+  const chip = e.target.closest('[data-filter]');
+  if (chip) {
+    state.filter = chip.dataset.filter;
+    savePrefs();
+    render();
+    return;
+  }
+  if (e.target.closest('#cleanup')) {
+    const pids = state.data.processes.filter((p) => p.orphan && p.mine).map((p) => p.pid);
+    confirmAndKill(pids, { signal: 'SIGTERM', tree: true });
+  }
+});
+
+$('#rows').addEventListener('click', (e) => {
+  const tr = e.target.closest('tr[data-pid]');
+  if (!tr) return;
+  const pid = Number(tr.dataset.pid);
+  if (e.target.closest('[data-check]')) {
+    if (e.target.checked) state.selected.add(pid); else state.selected.delete(pid);
+    renderTable();
+    renderBulk();
+    return;
+  }
+  if (e.target.closest('[data-stop]')) {
+    confirmAndKill([pid], { signal: 'SIGTERM' });
+    return;
+  }
+  openPanel(pid);
+});
+
+$('#check-all').addEventListener('change', (e) => {
+  const rows = visibleRows();
+  for (const { p } of rows) {
+    if (e.target.checked) state.selected.add(p.pid); else state.selected.delete(p.pid);
+  }
+  renderTable();
+  renderBulk();
+});
+
+document.querySelector('thead').addEventListener('click', (e) => {
+  const th = e.target.closest('th[data-sort]');
+  if (!th) return;
+  const key = th.dataset.sort;
+  state.sort = { key, dir: state.sort.key === key ? -state.sort.dir : ['name', 'project', 'origin', 'pid', 'ports'].includes(key) ? 1 : -1 };
+  savePrefs();
+  renderTable();
+});
+
+$('#panel').addEventListener('click', async (e) => {
+  const t = e.target;
+  if (t.closest('[data-close]')) return closePanel();
+  const go = t.closest('[data-goto]');
+  if (go) return openPanel(Number(go.dataset.goto));
+  const tail = t.closest('[data-tail]');
+  if (tail) return loadTail(Number(tail.dataset.tail));
+  if (t.closest('[data-load-env]')) return loadEnv(false);
+  const rev = t.closest('[data-reveal]');
+  if (rev) return loadEnv(rev.dataset.reveal === '1');
+  if (t.closest('[data-load-files]')) return loadFiles();
+  const act = t.closest('[data-act]')?.dataset.act;
+  if (!act || !state.detail) return;
+  const pid = state.detail.process.pid;
+  if (act === 'term') confirmAndKill([pid], { signal: 'SIGTERM' });
+  else if (act === 'tree') confirmAndKill([pid], { signal: 'SIGTERM', tree: true });
+  else if (act === 'kill') confirmAndKill([pid], { signal: 'SIGKILL' });
+  else if (act === 'open') {
+    try { const r = await post('/api/open', { pid }); toast(`Opened ${tilde(r.opened)}`, { level: 'ok' }); }
+    catch (err) { toast(err.message, { level: 'danger' }); }
+  } else if (act === 'copy') {
+    try { await navigator.clipboard.writeText(state.detail.process.args); toast('Command copied.', { level: 'ok' }); }
+    catch { toast("Couldn't access the clipboard.", { level: 'warn' }); }
+  }
+});
+
+$('#panel').addEventListener('input', (e) => {
+  if (e.target.id !== 'env-filter') return;
+  const q = e.target.value.trim().toLowerCase();
+  document.querySelectorAll('#env-out tr[data-key]').forEach((tr) => {
+    tr.hidden = q && !tr.dataset.key.includes(q) && !tr.textContent.toLowerCase().includes(q);
+  });
+});
+
+$('#q').addEventListener('input', (e) => { state.q = e.target.value; renderTable(); });
+$('#opt-tree').checked = state.tree;
+$('#opt-auto').checked = state.auto;
+$('#opt-tree').addEventListener('change', (e) => { state.tree = e.target.checked; savePrefs(); renderTable(); });
+$('#opt-auto').addEventListener('change', (e) => { state.auto = e.target.checked; savePrefs(); });
+$('#refresh').addEventListener('click', refresh);
+
+$('#bulk-stop').addEventListener('click', () => confirmAndKill([...state.selected], { signal: 'SIGTERM' }));
+$('#bulk-tree').addEventListener('click', () => confirmAndKill([...state.selected], { signal: 'SIGTERM', tree: true }));
+$('#bulk-kill').addEventListener('click', () => confirmAndKill([...state.selected], { signal: 'SIGKILL' }));
+$('#bulk-clear').addEventListener('click', () => { state.selected.clear(); render(); });
+
+document.addEventListener('keydown', (e) => {
+  if (state.modalOpen) return;
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName) && document.activeElement.type !== 'checkbox';
+  if (e.key === '/' && !typing) {
+    e.preventDefault();
+    $('#q').focus();
+  } else if (e.key === 'Escape') {
+    if (typing) document.activeElement.blur();
+    else if (state.active) closePanel();
+    else if (state.selected.size) { state.selected.clear(); render(); }
+  } else if ((e.key === 'Delete' || e.key === 'Backspace') && !typing) {
+    const pids = state.selected.size ? [...state.selected] : state.active ? [state.active] : [];
+    if (pids.length) { e.preventDefault(); confirmAndKill(pids, { signal: 'SIGTERM' }); }
+  } else if (e.key === 'r' && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    refresh();
+  }
+});
+
+setInterval(() => {
+  if (state.auto && !document.hidden && !state.modalOpen) refresh();
+}, REFRESH_MS);
+refresh();
+</script>
+</body>
+</html>
